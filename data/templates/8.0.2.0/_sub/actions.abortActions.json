@@ -1,0 +1,9 @@
+{
+  "_derived": true,
+  "_min_support": 0.6,
+  "cancelProcess": false,
+  "haltOnFinish": false,
+  "notifyOnEarlyFinish": false,
+  "notifyOnLateStart": false,
+  "notifyOnProjectedLate": false
+}

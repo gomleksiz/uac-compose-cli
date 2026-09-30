@@ -1,0 +1,50 @@
+# A workflow, its trigger and calendar in one deployment unit (compact style).
+# Names are fictional.
+version: 1
+style: compact
+
+custom_days:
+  ACME - Founders Day:
+    ctype: Absolute Repeating Date
+    category: Holiday
+    month: Jun
+    day: 14
+    observed: {Sat: Fri, Sun: Mon}
+
+calendars:
+  ACME Calendar:
+    businessDays: [Monday, Tuesday, Wednesday, Thursday, Friday]
+    customDays: [ACME - Founders Day]
+
+tasks:
+  Extract:
+    type: Unix
+    command: /opt/etl/extract.sh
+    agent: linux-batch-01
+    exitCodes: '0'
+
+  Load:
+    type: Unix
+    command: /opt/etl/load.sh
+    agent: linux-batch-01
+    exitCodes: '0'
+
+  Nightly:
+    type: Workflow
+    tasks:
+      Extract:
+      Load orders:   {task: Load, alias: Load orders, after: Extract}
+      Load returns:  {task: Load, after: Extract}
+      Report:                              # not defined here: an existing task
+        after: [Load orders, Load returns]
+        run_if: business day
+      Alert Ops:                           # an existing task
+        after: [{Extract: failure}, {Load orders: failure}]
+        condition: any
+
+triggers:
+  Nightly 2am:
+    type: Time
+    tasks: [Nightly]
+    calendar: ACME Calendar
+    time: '02:00'

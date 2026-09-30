@@ -1,0 +1,73 @@
+# Instance-specific fields that carry no definition meaning.
+#
+# Shared by the differ (what to strip before diffing), the content hash (so the
+# same definition on two controllers hashes identically), and -- once a live
+# controller is wired up -- the template bootstrapper.
+#
+# Exact key names only. Never widen these into prefix or regex matches:
+# `httpVersion` and `soapVersion` on taskWebService are real definition fields
+# that a match on "version" would wrongly suppress.
+
+# Stripped only at the root of an object.
+top_level:
+  - exportReleaseLevel
+  - exportTable
+  - retainSysIds
+  - changeHistory
+  - summary          # change-history comment, e.g. "updated"
+  - version          # UAC's optimistic-locking counter
+  - created
+  - createdBy
+  - updated
+  - updatedBy
+  - firstRun
+  - lastRun
+  - lastRunTime
+  - lastRunTimeDisplay
+  - runCount
+  # Execution statistics UAC computes from run history, not definition. Verified:
+  # across 3,146 never-run objects (runCount == 0) every one of these is zero.
+  - runTime
+  - avgRunTime
+  - avgRunTimeDisplay
+  - maxRunTime
+  - maxRunTimeDisplay
+  - minRunTime
+  - minRunTimeDisplay
+  # Trigger state: who last toggled it and when. Not part of the definition.
+  - enabledBy
+  - enabledTime
+  - disabledBy
+  - disabledTime
+  # The count of a workflow's members, which UAC derives from the vertices:
+  # equal to len(workflowVertices) on all 1,238 corpus workflows that state it,
+  # and null on the 8 empty ones. Writing it is at best a restatement and at
+  # worst a lie -- a bundle that adds a step would carry the old count.
+  - numberOfTasks
+  # sysId references to the launched tasks, present on all 386 triggers and
+  # exactly duplicating `tasks`, which names them. Cross-references must travel
+  # by name -- a sysId means nothing on another controller, and cannot be
+  # produced when generating a new trigger.
+  - taskIds
+  # Agent cluster state, not definition. The controller keeps it as it runs,
+  # and `suspend` / `resume` are commands of their own, not a field a
+  # promotion should carry. No other type declares any of these names.
+  - currentCount
+  - lastAgentUsed
+  - lastResolution
+  - resolutionDescription
+  - resolutionStatus
+  - suspended
+  - suspendedOn
+  - resumedOn
+
+# Stripped at every depth. Sub-objects (variables[], virtualResources[],
+# actions.*[], notes[], runCriteria[]) each carry their own row id.
+any_depth:
+  - sysId
+  # One agent's membership state inside an agent cluster's `agents` rows:
+  # suspended and resumed by command, like the cluster itself.
+  - membershipSuspended
+  - membershipSuspendedOn
+  - membershipResumedOn
+  - membershipDecommissioned

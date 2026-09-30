@@ -1,0 +1,7 @@
+{
+  "_derived": true,
+  "_min_support": 0.6,
+  "allowEmptyOption": false,
+  "allowUnlistedOption": false,
+  "required": false
+}

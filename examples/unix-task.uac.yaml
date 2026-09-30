@@ -1,0 +1,21 @@
+# Compact style (the default of `yarb export`).
+# The same task as unix-task.standard.yarb; both compile to identical UAC objects.
+# Names are fictional.
+version: 1
+style: compact
+
+tasks:
+  Nightly Load:
+    type: Unix
+    agent: ${agent}              # holds ${...}, so it compiles to agentVar
+    credentials: etl-svc
+    command: /opt/etl/load.sh
+    exitCodes: '0'
+    retryMaximum: 3
+    retryInterval: 300
+    sla:
+      late_finish:
+        duration: 2h             # a Duration constraint, on, 00:02:00:00
+    variables:
+    - load_date: ${_date('yyyy-MM-dd')}
+    - region: eu

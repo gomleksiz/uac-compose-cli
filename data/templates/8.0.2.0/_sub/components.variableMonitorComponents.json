@@ -1,0 +1,21 @@
+{
+  "_derived": true,
+  "_min_support": 0.6,
+  "action": "Do Not Trigger",
+  "enabledEnd": "00:00",
+  "enabledStart": "00:00",
+  "restrictedTimes": false,
+  "restriction": false,
+  "restrictionAdjective": "Every",
+  "restrictionComplex": false,
+  "restrictionMode": "Or",
+  "restrictionNoun": {
+    "value": "Day"
+  },
+  "restrictionNthAmount": 5,
+  "restrictionQualifier": {
+    "value": "Year"
+  },
+  "restrictionSimple": false,
+  "situation": "Holiday"
+}

@@ -1,0 +1,15 @@
+{
+  "_derived": true,
+  "_documented": 0,
+  "_instances": 56,
+  "_min_support": 0.6,
+  "enabled": false,
+  "enforceVariables": false,
+  "lockVariables": false,
+  "rdExcludeBackup": false,
+  "retentionDuration": 1,
+  "retentionDurationPurge": false,
+  "retentionDurationUnit": "Days",
+  "simulateTasks": false,
+  "type": "triggerManual"
+}

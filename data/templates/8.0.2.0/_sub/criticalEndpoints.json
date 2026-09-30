@@ -1,0 +1,20 @@
+{
+  "_derived": true,
+  "_min_support": 0.6,
+  "lfDayConstraint": "None",
+  "lfDuration": "00:00:00:00",
+  "lfEnabled": false,
+  "lfNthAmount": 5,
+  "lfOffsetDurationUnit": "Minutes",
+  "lfOffsetPercentage": 0,
+  "lfOffsetType": "Percentage",
+  "lfTime": "00:00",
+  "lfType": "Time",
+  "lsDayConstraint": "None",
+  "lsDuration": "00:00:00:00",
+  "lsEnabled": false,
+  "lsNthAmount": 5,
+  "lsTime": "00:00",
+  "lsType": "Time",
+  "vertexId": "Any"
+}

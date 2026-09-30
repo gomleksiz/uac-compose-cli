@@ -1,0 +1,61 @@
+# Readable names for UAC fields, in the compact style only.
+#
+# An alias is a rename and nothing else: it must mean exactly what the UAC
+# field means, and compile must be able to put the UAC name back. So an alias
+# is refused where the type already declares a field of that name -- the check
+# is a test, not a hope.
+#
+# `--style standard` never renames anything.
+
+# Every type that declares the field.
+common:
+  # What UAC's UI calls the thing `opswiseGroups` holds, and the name of the
+  # section that creates them.
+  #
+  # A real extension parameter wins over it. One Universal task on a live
+  # controller carries a parameter called `business_services`, and two keys of
+  # one name could not be told apart -- so on an object whose extension
+  # declares that name, the UAC field keeps its own. Same rule as collapsing a
+  # parameter onto a real UAC field: the thing that is really there wins.
+  opswiseGroups: business_services
+
+types:
+  credential:
+    runtimeUser: user
+
+# Inside a list of sub-objects: `<dotted path>: {uac field: alias}`.
+#
+# `notifyOnLateFinish` reads as "notify" only where the action IS a
+# notification. On an abort, a system operation or a variable being set it is
+# the trigger for the action, so it is named for what it is.
+sub:
+  actions.abortActions:
+    notifyOnLateFinish: on_late_finish
+    notifyOnLateStart: on_late_start
+    notifyOnEarlyFinish: on_early_finish
+    notifyOnProjectedLate: on_projected_late
+  actions.systemOperations:
+    notifyOnLateFinish: on_late_finish
+    notifyOnLateStart: on_late_start
+    notifyOnEarlyFinish: on_early_finish
+    notifyOnProjectedLate: on_projected_late
+  actions.setVariableActions:
+    notifyOnLateFinish: on_late_finish
+    notifyOnLateStart: on_late_start
+    notifyOnEarlyFinish: on_early_finish
+    notifyOnProjectedLate: on_projected_late
+
+# The order the first fields of a sub-object row are written in, so a reader
+# meets what the row IS before how it is configured. Fields not named here
+# follow, in the order the controller gave them.
+order:
+  actions.systemOperations: [status, operation]
+  actions.setVariableActions: [status, variableName, variableValue]
+  actions.abortActions: [status]
+  actions.emailNotifications: [status]
+  actions.snmpNotifications: [status]
+
+# Fields stored as `[{name, value}]` and written as `- name: value`, addressed
+# by their dotted path inside the object.
+pairs:
+  - actions.systemOperations.variables

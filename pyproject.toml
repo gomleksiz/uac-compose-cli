@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "uac-compose"
+version = "0.2.2"
+description = "Export Stonebranch UAC definitions to readable .uac.yaml bundles and import them back"
+requires-python = ">=3.12"
+dependencies = [
+    "click>=8.1",
+    "pydantic>=2.7",
+    "PyYAML>=6.0",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0", "ruff>=0.5", "mypy>=1.10", "types-PyYAML"]
+
+[project.scripts]
+uac-compose = "uac_compose.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/uac_compose"]
+
+# The read-only seed data travels inside the wheel, so an install needs no
+# checkout. The corpus (UAC_COMPOSE_CORPUS) is real production data and never ships.
+[tool.hatch.build.targets.wheel.force-include]
+"data" = "uac_compose/_data"
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "data", "docs", "examples", "scripts", "Makefile", "pyproject.toml"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+packages = ["uac_compose"]
+mypy_path = "src"
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Corpus tests run over the real exports at UAC_COMPOSE_CORPUS: slow, and skipped when
+# the corpus is absent. `make test-corpus` runs them.
+addopts = "-q -m 'not corpus and not live'"
+markers = [
+    "corpus: runs over the real export corpus at UAC_COMPOSE_CORPUS (slow)",
+    "live: talks to a real controller; opt in with UAC_COMPOSE_LIVE_PROFILE",
+]

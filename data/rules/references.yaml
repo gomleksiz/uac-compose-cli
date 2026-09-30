@@ -1,0 +1,118 @@
+# Fields whose value names another object, and which kind of object.
+#
+# Used by `export --with-members` (what to bring along) and by import
+# validation (warn about a name the controller and the file do not know).
+# Kinds are bundle section names; `agents` and `users` exist only in
+# references.json (learn), never in a bundle.
+#
+# A value may be a plain name, a `{value: name}` wrapper (controller-labelled
+# fields), or a list of names. A value holding `${` is a variable and is never
+# checked.
+
+fields:
+  agent: agents
+  agentCluster: agent_clusters
+  broadcastCluster: agent_clusters
+  # UDM and Universal Command name their agent in a `*Ref` field, and the
+  # controller resolves it exactly as it resolves `agent`: "Could not find the
+  # specified primaryBrokerRef: AGENT-01". There is no `*RefVar` twin, so a
+  # variable cannot stand in for one.
+  primaryBrokerRef: agents
+  secondaryBrokerRef: agents
+  brokerRef: agents
+  credentials: credentials
+  psCredentials: credentials
+  sapCred: credentials
+  brokerCred: credentials
+  remoteCredentials: credentials
+  # An FTP task's two ends. Corpus: 46 of 5,286 objects name a primary and
+  # 79 a secondary credential, all taskFtp.
+  primaryCredentials: credentials
+  secondaryCredentials: credentials
+  calendar: calendars
+  script: scripts
+  payloadScript: scripts
+  eventTemplate: event_templates
+  templateEventTemplate: event_templates
+  sapConnection: sap_connections
+  # The business services an object belongs to. Measured live on ps1: a
+  # script naming services the target lacked was refused ("Unable to find
+  # Business Service with name ..."). Corpus: 1,414 of 5,286 objects name one
+  # (1,553 names).
+  opswiseGroups: business_services
+  # The services whose events a Universal Monitor watches (with
+  # eventBusinessServiceCriteria: Member of Specific Business Services).
+  # Corpus: 6 of 5,286 objects name one (8 names), all taskUniversalMonitor.
+  eventBusinessServices: business_services
+  # a trigger's launched tasks and watched monitor
+  tasks: tasks
+  taskMonitor: tasks
+
+# `connection` names a different kind per task type.
+by_type:
+  connection:
+    taskSql: database_connections
+    taskStoredProc: database_connections
+    taskPeoplesoft: peoplesoft_connections
+    taskEmail: email_connections
+    taskEmailMonitor: email_connections
+  # Generic names, so scoped to the one type that has them.
+  parent:
+    userGroup: user_groups
+  manager:
+    userGroup: users
+  # A Universal Monitor task watches one Universal task, which the
+  # controller needs first: "Invalid task universal: <name>" (measured live on
+  # ps1). Corpus: 11 of 88 Universal Monitor tasks name one.
+  taskUniversal:
+    taskUniversalMonitor: tasks
+
+# A Universal task's extension parameters sit in numbered slots,
+# `<prefix><n>: {label, name, value}`; these prefixes hold a name. The
+# `*VarField<n>` twins hold a variable and are not references. Corpus: 1,113
+# credential, 253 script and 1 SAP connection slots name one, in 1,023 objects.
+slots:
+  credentialField: credentials
+  scriptField: scripts
+  sapConnectionField: sap_connections
+
+# Inside lists of sub-objects: `<list field>.<field>`.
+sub:
+  virtualResources.resource: virtual_resources
+  # An action that launches or commands another object names it by name.
+  actions.systemOperations.agent: agents
+  actions.systemOperations.agentCluster: agent_clusters
+  actions.systemOperations.task: tasks
+  actions.systemOperations.virtualResource: virtual_resources
+  stepActions.agent: agents
+  stepActions.agentCluster: agent_clusters
+  stepActions.task: tasks
+  exclusiveTasks.name: tasks
+  # An Approval task names the UAC users who may approve it. They are not
+  # objects a bundle creates, and the controller refuses a create that names
+  # one it does not have: "User 'jdoe' not found".
+  approvalCriteria.criteria.user: users
+  # ... or a user group, which a bundle can carry.
+  approvalCriteria.criteria.group: user_groups
+  # An agent cluster's members. Agents belong to machines and are never in a
+  # bundle: on another controller they are usually different agents, so an
+  # import warns about each one the target does not have.
+  agents.agentName: agents
+  # A user group's members are users; each permission row names the business
+  # services it applies to.
+  groupMembers.user: users
+  permissions.opswiseGroups: business_services
+  # a calendar's custom days (its localCustomDays are definitions, not references)
+  customDays.name: custom_days
+
+# References the controller will not create without. The whole object is
+# refused when ONE of these names an object the controller does not have, so
+# an import stops with an error before it writes anything, rather than warning
+# and stopping half-way through. Measured live on a test controller: a user
+# group naming 7 users it lacked ("Cannot find user: ...") and an agent
+# cluster naming 8 agents it lacked were both refused; the same cluster with
+# no agents, or with one real agent, was created.
+refused_when_missing:
+  - agents.agentName
+  - groupMembers.user
+  - opswiseGroups

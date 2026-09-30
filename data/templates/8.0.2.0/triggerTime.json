@@ -1,0 +1,62 @@
+{
+  "_derived": true,
+  "_documented": 0,
+  "_instances": 202,
+  "_min_support": 0.6,
+  "action": "Do Not Trigger",
+  "adjustInterval": false,
+  "adjustmentAmount": 1,
+  "adjustmentType": "Day",
+  "dateAdjective": "Every",
+  "dateAdjustment": "None",
+  "dateNouns": [
+    {
+      "value": "Day"
+    }
+  ],
+  "dateQualifier": {
+    "value": "Year"
+  },
+  "dateQualifiers": [
+    {
+      "value": "Year"
+    }
+  ],
+  "dayInterval": 2,
+  "dayStyle": "Simple",
+  "enabled": false,
+  "enforceVariables": false,
+  "forecast": false,
+  "fri": false,
+  "lockVariables": false,
+  "mon": false,
+  "nthAmount": 5,
+  "rdExcludeBackup": false,
+  "restrictedTimes": false,
+  "restriction": false,
+  "restrictionAdjective": "Every",
+  "restrictionComplex": false,
+  "restrictionMode": "Or",
+  "restrictionNthAmount": 5,
+  "restrictionSimple": false,
+  "retentionDuration": 1,
+  "retentionDurationPurge": false,
+  "retentionDurationUnit": "Days",
+  "sat": false,
+  "simulateTasks": false,
+  "simulationOption": "-- System Default --",
+  "situation": "Holiday",
+  "skipActive": false,
+  "skipCondition": "None",
+  "skipCount": 0,
+  "skipRestriction": "None",
+  "startTimeEnable": false,
+  "startingAt": "*:00",
+  "sun": false,
+  "thu": false,
+  "timeIntervalUnits": "Hours",
+  "timeStyle": "Absolute",
+  "tue": false,
+  "type": "triggerTime",
+  "wed": false
+}

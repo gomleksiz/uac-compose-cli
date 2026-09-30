@@ -1,0 +1,2915 @@
+# Distilled once from the Stonebranch AI 2.0 field documentation (not in
+# this repo). Edit it by hand; `make check` tests it against the registry.
+#
+# scopes: fields of the shared skills; a type gets a scope's field only if
+#   the registry declares it on that type.
+# types:  per-type fields from the agent doc; `include` names the scopes.
+# values: name -> integer id; the name is what GET returns and what yarb
+#   writes. ui_labels: UI label -> name, only where they differ.
+# applies_when / required_when: {field: [values]}; null = absent;
+#   {field: {not: [values]}} negates.
+categories:
+  General: general
+  Retry Options: retry
+  Wait / Delay Options: wait
+  Time Options / Late Start: time.late_start
+  Time Options / Late Finish: time.late_finish
+  Time Options / Early Finish: time.early_finish
+  Time Options / Estimated duration: time
+  Critical Path Options: critical_path
+  Execution Options: restriction
+  Self-Service Options: self_service
+  Agent Selection: execution
+  Credentials: execution
+  Command vs Script: null
+  Command Execution Options: command_options
+  Exit-Code Processing: exit_codes
+  Automatic Output Retrieval: output
+  Retry Exit Codes: retry
+  Database connection: execution
+  Database credentials: execution
+  Result processing: exit_codes
+scopes:
+  agent_task:
+    agent:
+      label: Agent
+      category: Agent Selection
+      kind: text
+      required: cond
+      group: execution
+    agentCluster:
+      label: Agent Cluster
+      category: Agent Selection
+      kind: text
+      required: cond
+      group: execution
+    agentClusterVar:
+      label: Agent Cluster Unresolved
+      category: Agent Selection
+      kind: text
+      required: cond
+      group: execution
+    agentVar:
+      label: Agent Unresolved
+      category: Agent Selection
+      kind: text
+      required: cond
+      group: execution
+    broadcastCluster:
+      label: Cluster Broadcast
+      category: Agent Selection
+      kind: text
+      required: cond
+      group: execution
+    broadcastClusterVar:
+      label: Cluster Broadcast Unresolved
+      category: Agent Selection
+      kind: text
+      required: cond
+      group: execution
+  database_task:
+    autoCleanup:
+      label: Auto Cleanup
+      category: Result processing
+      kind: boolean
+      group: exit_codes
+    columnName:
+      label: Column Name
+      category: Result processing
+      kind: text
+      required: cond
+      group: exit_codes
+    connection:
+      label: Connection
+      category: Database connection
+      kind: text
+      required: cond
+      group: execution
+    connectionVar:
+      label: Connection Unresolved
+      category: Database connection
+      kind: text
+      required: cond
+      group: execution
+    exitCodes:
+      label: Exit Codes
+      category: Result processing
+      format: 1,5,22-30
+      default: '0'
+      applies_when:
+        resultProcessing:
+        - Success Exitcode Range
+        - Failure Exitcode Range
+      group: exit_codes
+    maxRows:
+      label: Maximum Rows
+      category: Result processing
+      kind: integer
+      group: exit_codes
+    resultProcessing:
+      category: Result processing
+      default: Skip Result Processing
+      label: Result Processing
+      kind: enum
+      values:
+        Skip Result Processing: 1
+        Success Exitcode Range: 2
+        Failure Exitcode Range: 3
+        Success Result Set Contains: 4
+        Failure Result Set Contains: 5
+        Success Output Parameter: 6
+        Failure Output Parameter: 7
+      group: exit_codes
+  distributed_agent_task:
+    command:
+      label: Command
+      category: Command vs Script
+      applies_when:
+        commandOrScript:
+        - Command
+        - null
+    commandOrScript:
+      category: Command vs Script
+      kind: enum
+      values:
+        Command: 1
+        Script: 2
+      default: Command
+      label: Command or Script
+    environment:
+      label: Environment Variables
+      category: Command Execution Options
+      kind: list
+      group: command_options
+    exitCodeOutput:
+      label: Output File
+      category: Exit-Code Processing
+      applies_when:
+        outputType:
+        - FILE
+        exitCodeProcessing:
+        - Success Output Contains
+        - Failure Output Contains
+      required_when:
+        outputType:
+        - FILE
+        exitCodeProcessing:
+        - Success Output Contains
+        - Failure Output Contains
+      group: exit_codes
+    exitCodeProcessing:
+      category: Exit-Code Processing
+      kind: enum
+      values:
+        Success Exitcode Range: 1
+        Failure Exitcode Range: 2
+        Success Output Contains: 3
+        Failure Output Contains: 4
+      default: Success Exitcode Range
+      label: Exit Code Processing
+      group: exit_codes
+    exitCodeText:
+      label: Scan Output For
+      category: Exit-Code Processing
+      applies_when:
+        exitCodeProcessing:
+        - Success Output Contains
+        - Failure Output Contains
+      required_when:
+        exitCodeProcessing:
+        - Success Output Contains
+        - Failure Output Contains
+      group: exit_codes
+    exitCodes:
+      label: Exit Codes
+      category: Exit-Code Processing
+      format: 1,5,22-30
+      applies_when:
+        exitCodeProcessing:
+        - Success Exitcode Range
+        - Failure Exitcode Range
+        - null
+      group: exit_codes
+    outputFailureOnly:
+      label: Failure Only
+      category: Automatic Output Retrieval
+      kind: boolean
+      group: output
+    outputReturnFile:
+      label: Automatic Output File
+      category: Automatic Output Retrieval
+      kind: text
+      required: cond
+      applies_when:
+        outputReturnType:
+        - FILE
+      required_when:
+        outputReturnType:
+        - FILE
+      group: output
+    outputReturnNline:
+      label: Number of Lines
+      category: Automatic Output Retrieval
+      kind: integer
+      group: output
+    outputReturnSline:
+      label: Start Line
+      category: Automatic Output Retrieval
+      kind: integer
+      default: '1'
+      group: output
+    outputReturnText:
+      label: Scan Text
+      category: Automatic Output Retrieval
+      kind: text
+      group: output
+    outputReturnType:
+      label: Automatic Output Retrieval
+      category: Automatic Output Retrieval
+      kind: enum
+      values:
+        NONE: 1
+        STDOUT: 2
+        STDERR: 3
+        OUTERR: 6
+        FILE: 4
+      ui_labels:
+        -- None --: NONE
+        Standard Output: STDOUT
+        Standard Error: STDERR
+        Standard Output/Error: OUTERR
+        File: FILE
+      default: NONE
+      group: output
+    outputType:
+      category: Exit-Code Processing
+      kind: enum
+      values:
+        STDOUT: 1
+        STDERR: 2
+        FILE: 3
+      ui_labels:
+        Standard Output: STDOUT
+        Standard Error: STDERR
+        File: FILE
+      label: Output Type
+      applies_when:
+        exitCodeProcessing:
+        - Success Output Contains
+        - Failure Output Contains
+      required_when:
+        exitCodeProcessing:
+        - Success Output Contains
+        - Failure Output Contains
+      group: exit_codes
+    parameters:
+      label: Parameters
+      category: Command Execution Options
+      kind: text
+      group: command_options
+    retryExitCodes:
+      label: Retry Exit Codes
+      category: Retry Exit Codes
+      kind: text
+      format: 1,5,22-30
+      group: retry
+    runtimeDir:
+      label: Runtime Directory
+      category: Command Execution Options
+      kind: text
+      group: command_options
+    script:
+      label: Script
+      category: Command vs Script
+      applies_when:
+        commandOrScript:
+        - Script
+    waitForOutput:
+      label: Wait For Output
+      category: Automatic Output Retrieval
+      kind: boolean
+      group: output
+  common:
+    cpDuration:
+      label: CP Duration
+      category: Critical Path Options
+      kind: text
+      group: critical_path
+    cpDurationUnit:
+      label: CP Duration Unit
+      category: Critical Path Options
+      kind: enum
+      values:
+        Seconds: 1
+        Minutes: 2
+        Hours: 3
+      default: Minutes
+      group: critical_path
+    credentials:
+      label: Credentials
+      category: General
+      kind: text
+      group: execution
+    credentialsVar:
+      label: Credentials Unresolved
+      category: General
+      kind: text
+      group: execution
+    customChoiceField1:
+      label: User Defined Choice Field 1
+      category: General
+      kind: object
+      required: cond
+      group: general
+    customField1:
+      label: User Defined Field 1
+      category: General
+      kind: object
+      required: cond
+      group: general
+    customField2:
+      label: User Defined Field 2
+      category: General
+      kind: object
+      required: cond
+      group: general
+    efDayConstraint:
+      label: Early Finish Day Constraint
+      category: Time Options / Early Finish
+      kind: enum
+      values:
+        None: 0
+        Same Day: 1
+        Next Day: 2
+        Next Business Day: 3
+        Sunday: 4
+        Monday: 5
+        Tuesday: 6
+        Wednesday: 7
+        Thursday: 8
+        Friday: 9
+        Saturday: 10
+        Nth Day: 11
+      required: cond
+      group: time.early_finish
+    efDuration:
+      label: Early Finish Duration
+      category: Time Options / Early Finish
+      kind: duration
+      format: DD:HH:MM:SS
+      required: cond
+      group: time.early_finish
+    efEnabled:
+      label: Early Finish
+      category: Time Options / Early Finish
+      kind: boolean
+      group: time.early_finish
+    efNthAmount:
+      label: Early Finish Nth Amount
+      category: Time Options / Early Finish
+      kind: integer
+      default: 5
+      required: cond
+      group: time.early_finish
+    efOffsetDuration:
+      label: Early Finish Duration Offset (-)
+      category: Time Options / Early Finish
+      kind: text
+      required: cond
+      group: time.early_finish
+    efOffsetDurationUnit:
+      label: Early Finish Duration Offset Unit
+      category: Time Options / Early Finish
+      kind: enum
+      values:
+        Seconds: 1
+        Minutes: 2
+        Hours: 3
+      default: Minutes
+      required: cond
+      group: time.early_finish
+    efOffsetPercentage:
+      label: Early Finish Percentage Offset (-)
+      category: Time Options / Early Finish
+      kind: integer
+      required: cond
+      group: time.early_finish
+    efOffsetType:
+      label: Early Finish Offset Type
+      category: Time Options / Early Finish
+      kind: enum
+      values:
+        Percentage: 1
+        Duration: 2
+      default: Percentage
+      required: cond
+      group: time.early_finish
+    efTime:
+      label: Early Finish Time
+      category: Time Options / Early Finish
+      kind: text
+      format: HH:MM
+      required: cond
+      group: time.early_finish
+    efType:
+      label: Early Finish Type
+      category: Time Options / Early Finish
+      kind: enum
+      values:
+        Time: 1
+        Duration: 2
+        Average Duration: 5
+      default: Time
+      required: cond
+      group: time.early_finish
+    enforceVariables:
+      label: Enforce Variables
+      category: Self-Service Options
+      kind: boolean
+      group: self_service
+    exclusiveWithSelf:
+      label: Mutually Exclusive With Self
+      category: General
+      kind: boolean
+      group: general
+    executionRestriction:
+      label: Execution Restriction
+      category: Execution Options
+      kind: enum
+      values:
+        None: 0
+        Run: 1
+        Skip: 2
+        Hold: 3
+      default: None
+      required: cond
+      group: restriction
+    holdResources:
+      label: Hold Resources on Failure
+      category: General
+      kind: boolean
+      group: general
+    lfDayConstraint:
+      label: Late Finish Day Constraint
+      category: Time Options / Late Finish
+      kind: enum
+      values:
+        None: 0
+        Same Day: 1
+        Next Day: 2
+        Next Business Day: 3
+        Sunday: 4
+        Monday: 5
+        Tuesday: 6
+        Wednesday: 7
+        Thursday: 8
+        Friday: 9
+        Saturday: 10
+        Nth Day: 11
+      required: cond
+      group: time.late_finish
+    lfDuration:
+      label: Late Finish Duration
+      category: Time Options / Late Finish
+      kind: duration
+      format: DD:HH:MM:SS
+      required: cond
+      group: time.late_finish
+    lfEnabled:
+      label: Late Finish
+      category: Time Options / Late Finish
+      kind: boolean
+      group: time.late_finish
+    lfNthAmount:
+      label: Late Finish Nth Amount
+      category: Time Options / Late Finish
+      kind: integer
+      default: 5
+      required: cond
+      group: time.late_finish
+    lfOffsetDuration:
+      label: Late Finish Duration Offset (+)
+      category: Time Options / Late Finish
+      kind: text
+      required: cond
+      group: time.late_finish
+    lfOffsetDurationUnit:
+      label: Late Finish Duration Offset Unit
+      category: Time Options / Late Finish
+      kind: enum
+      values:
+        Seconds: 1
+        Minutes: 2
+        Hours: 3
+      default: Minutes
+      required: cond
+      group: time.late_finish
+    lfOffsetPercentage:
+      label: Late Finish Percentage Offset (+)
+      category: Time Options / Late Finish
+      kind: integer
+      required: cond
+      group: time.late_finish
+    lfOffsetType:
+      label: Late Finish Offset Type
+      category: Time Options / Late Finish
+      kind: enum
+      values:
+        Percentage: 1
+        Duration: 2
+      default: Percentage
+      required: cond
+      group: time.late_finish
+    lfTime:
+      label: Late Finish Time
+      category: Time Options / Late Finish
+      kind: text
+      format: HH:MM
+      required: cond
+      group: time.late_finish
+    lfType:
+      label: Late Finish Type
+      category: Time Options / Late Finish
+      kind: enum
+      values:
+        Time: 1
+        Duration: 2
+        Average Duration: 5
+      default: Time
+      required: cond
+      group: time.late_finish
+    lockVariables:
+      label: Lock Variables
+      category: Self-Service Options
+      kind: boolean
+      group: self_service
+    lsDayConstraint:
+      label: Late Start Day Constraint
+      category: Time Options / Late Start
+      kind: enum
+      values:
+        None: 0
+        Same Day: 1
+        Next Day: 2
+        Next Business Day: 3
+        Sunday: 4
+        Monday: 5
+        Tuesday: 6
+        Wednesday: 7
+        Thursday: 8
+        Friday: 9
+        Saturday: 10
+        Nth Day: 11
+      required: cond
+      group: time.late_start
+    lsDuration:
+      label: Late Start Duration
+      category: Time Options / Late Start
+      kind: duration
+      format: DD:HH:MM:SS
+      required: cond
+      group: time.late_start
+    lsEnabled:
+      label: Late Start
+      category: Time Options / Late Start
+      kind: boolean
+      group: time.late_start
+    lsNthAmount:
+      label: Late Start Nth Amount
+      category: Time Options / Late Start
+      kind: integer
+      default: 5
+      required: cond
+      group: time.late_start
+    lsTime:
+      label: Late Start Time
+      category: Time Options / Late Start
+      kind: text
+      format: HH:MM
+      required: cond
+      group: time.late_start
+    lsType:
+      label: Late Start Type
+      category: Time Options / Late Start
+      kind: enum
+      values:
+        Time: 1
+        Duration: 2
+      default: Time
+      required: cond
+      group: time.late_start
+    name:
+      label: Name
+      category: General
+      kind: text
+      required: true
+      group: general
+    opswiseGroups:
+      label: Member of Business Services
+      category: General
+      kind: list
+      group: general
+    overrideInstanceWait:
+      label: Override Previous Instance Wait
+      category: General
+      kind: enum
+      values:
+        'No': 0
+        Yes / -- None --: 1
+        Yes / Wait For Last: 2
+        Yes / Wait For Last / Same Workflow: 3
+        Yes / Wait For All: 4
+        Yes / Wait For All / Same Workflow: 5
+      default: 'No'
+      group: general
+    resPriority:
+      label: Virtual Resource Priority
+      category: General
+      kind: integer
+      default: 10
+      required: cond
+      group: general
+    resPriorityVar:
+      label: Virtual Resource Priority Unresolved
+      category: General
+      kind: text
+      required: cond
+      group: general
+    resolveNameImmediately:
+      label: Resolve Name Immediately
+      category: General
+      kind: boolean
+      group: general
+    restrictionPeriod:
+      label: Restriction Period
+      category: Execution Options
+      kind: enum
+      values:
+        None: 0
+        Before: 1
+        After: 2
+        Span: 3
+        'On': 4
+      required: cond
+      applies_when:
+        executionRestriction:
+        - Run
+        - Skip
+        - Hold
+      required_when:
+        executionRestriction:
+        - Run
+        - Skip
+        - Hold
+      group: restriction
+    restrictionPeriodAfterDate:
+      label: After Date
+      category: Execution Options
+      kind: date
+      format: yyyy-MM-dd
+      required: cond
+      required_when:
+        restrictionPeriod:
+        - After
+        - Span
+      group: restriction
+    restrictionPeriodAfterTime:
+      label: After Time
+      category: Execution Options
+      kind: text
+      format: HH:MM
+      group: restriction
+    restrictionPeriodBeforeDate:
+      label: Before Date
+      category: Execution Options
+      kind: date
+      format: yyyy-MM-dd
+      required: cond
+      required_when:
+        restrictionPeriod:
+        - Before
+        - Span
+      group: restriction
+    restrictionPeriodBeforeTime:
+      label: Before Time
+      category: Execution Options
+      kind: text
+      format: HH:MM
+      group: restriction
+    restrictionPeriodDateList:
+      label: Date List
+      category: Execution Options
+      kind: list
+      required: cond
+      required_when:
+        restrictionPeriod:
+        - 'On'
+      group: restriction
+    retryIndefinitely:
+      label: Retry Indefinitely
+      category: Retry Options
+      kind: boolean
+      group: retry
+    retryInterval:
+      label: Retry Interval (Seconds)
+      category: Retry Options
+      kind: integer
+      default: 60
+      required: cond
+      applies_when:
+        retryMaximum:
+          not:
+          - 0
+      group: retry
+    retryMaximum:
+      label: Maximum Retries
+      category: Retry Options
+      kind: integer
+      default: 0
+      group: retry
+    retrySuppressFailure:
+      label: Suppress Intermediate Failures
+      category: Retry Options
+      kind: boolean
+      group: retry
+    simulation:
+      label: Simulate
+      category: General
+      kind: boolean
+      required: cond
+      group: general
+    startHeld:
+      label: Hold on Start
+      category: General
+      kind: boolean
+      group: general
+    startHeldReason:
+      label: Hold Reason
+      category: General
+      kind: text
+      applies_when:
+        startHeld:
+        - true
+      group: general
+    summary:
+      label: Description
+      category: General
+      kind: text
+      group: general
+    timeZonePref:
+      label: Time Zone Preference
+      category: General
+      kind: enum
+      values:
+        -- System Default --: 0
+        Server: 1
+        Inherited: 2
+      default: -- System Default --
+      group: general
+    twDelayAmount:
+      label: Delay Duration In Seconds
+      category: Wait / Delay Options
+      kind: text
+      required: cond
+      applies_when:
+        twDelayType:
+        - Seconds
+      required_when:
+        twDelayType:
+        - Seconds
+      group: wait
+    twDelayDuration:
+      label: Delay Duration
+      category: Wait / Delay Options
+      kind: duration
+      format: DD:HH:MM:SS
+      required: cond
+      applies_when:
+        twDelayType:
+        - Duration
+      required_when:
+        twDelayType:
+        - Duration
+      group: wait
+    twDelayType:
+      label: Delay On Start
+      category: Wait / Delay Options
+      kind: enum
+      values:
+        None: 0
+        Duration: 2
+        Seconds: 3
+      default: None
+      required: cond
+      group: wait
+    twWaitAmount:
+      label: Wait Duration In Seconds
+      category: Wait / Delay Options
+      kind: text
+      required: cond
+      applies_when:
+        twWaitType:
+        - Seconds
+      required_when:
+        twWaitType:
+        - Seconds
+      group: wait
+    twWaitDayConstraint:
+      label: Wait Day Constraint
+      category: Wait / Delay Options
+      kind: enum
+      values:
+        None: 0
+        Same Day: 1
+        Next Day: 2
+        Next Business Day: 3
+        Sunday: 4
+        Monday: 5
+        Tuesday: 6
+        Wednesday: 7
+        Thursday: 8
+        Friday: 9
+        Saturday: 10
+      applies_when:
+        twWaitType:
+        - Time
+        - Relative Time
+      group: wait
+    twWaitDuration:
+      label: Wait Duration
+      category: Wait / Delay Options
+      kind: duration
+      format: DD:HH:MM:SS
+      required: cond
+      applies_when:
+        twWaitType:
+        - Duration
+      required_when:
+        twWaitType:
+        - Duration
+      group: wait
+    twWaitTime:
+      label: Wait Time (HH:MM)
+      category: Wait / Delay Options
+      kind: text
+      format: HH:MM
+      required: cond
+      applies_when:
+        twWaitType:
+        - Time
+        - Relative Time
+      required_when:
+        twWaitType:
+        - Time
+        - Relative Time
+      group: wait
+    twWaitType:
+      label: Wait To Start
+      category: Wait / Delay Options
+      kind: enum
+      values:
+        None: 0
+        Time: 1
+        Relative Time: 4
+        Duration: 2
+        Seconds: 3
+      default: None
+      required: cond
+      group: wait
+    twWorkflowOnly:
+      label: Workflow Only
+      category: Wait / Delay Options
+      kind: enum
+      values:
+        -- System Default --: 0
+        'Yes': 1
+        'No': 2
+      group: wait
+    userEstimatedDuration:
+      label: User Estimated Duration
+      category: Time Options / Estimated duration
+      kind: duration
+      format: DD:HH:MM:SS
+      required: cond
+      group: time
+types:
+  taskApplicationControl:
+    doc: null
+    include:
+    - common
+  taskApproval:
+    include:
+    - common
+    exclude:
+    - credentials
+    - credentialsVar
+    - retryIndefinitely
+    - retryInterval
+    - retryMaximum
+    - retrySuppressFailure
+    fields:
+      approvalCriteria:
+        label: Approval Criteria
+        section: Step 3 - Approval Details (task-type-specific fields)
+        kind: object
+        required: true
+      approvalDescription:
+        label: Approval Description
+        section: Step 3 - Approval Details (task-type-specific fields)
+        kind: text
+      approvalLinks:
+        label: Approval Links / References
+        section: Step 3 - Approval Details (task-type-specific fields)
+        kind: list
+    sub_objects:
+      approvalCriteria:
+        logicalOperator:
+          section: '`approvalCriteria` (required)'
+          default: And
+  taskEmail:
+    include:
+    - common
+    exclude:
+    - credentials
+    - credentialsVar
+    - retryIndefinitely
+    - retryInterval
+    - retryMaximum
+    - retrySuppressFailure
+    fields:
+      attachLocalFile:
+        label: Attach Local File
+        section: 3c. Attachments (optional)
+        kind: boolean
+      bccRecipients:
+        label: Bcc
+        section: 3b. Recipients and content
+        kind: text
+        required: cond
+      body:
+        label: Body
+        section: 3b. Recipients and content
+        kind: text
+      ccRecipients:
+        label: Cc
+        section: 3b. Recipients and content
+        kind: text
+        required: cond
+      connection:
+        label: Email Connection
+        section: 3a. Connection or template
+        kind: text
+        required: cond
+      listReportFormat:
+        label: List Report Format
+        section: 3c. Attachments (optional)
+        kind: enum
+        values:
+          PDF: 1
+          XML: 2
+          JSON: 3
+          CSV: 4
+          TSV: 5
+        default: PDF
+      localAttachment:
+        label: Local Attachment
+        section: 3c. Attachments (optional)
+        kind: text
+        required: cond
+      replyTo:
+        label: Reply-To
+        section: 3b. Recipients and content
+        kind: text
+      report:
+        label: Report
+        section: 3c. Attachments (optional)
+        kind: object
+      reportVar:
+        label: Report Unresolved
+        section: 3c. Attachments (optional)
+        kind: text
+      saveToSentItems:
+        label: Save To Sent Items
+        section: 3d. Other
+        kind: enum
+        values:
+          Default: -1
+          'No': 0
+          'Yes': 1
+      subject:
+        label: Subject
+        section: 3b. Recipients and content
+        kind: text
+      template:
+        label: Email Template
+        section: 3a. Connection or template
+        kind: text
+        required: cond
+      templateVar:
+        label: Email Template Unresolved
+        section: 3a. Connection or template
+        kind: text
+        required: cond
+      toRecipients:
+        label: To
+        section: 3b. Recipients and content
+        kind: text
+        required: cond
+  taskEmailMonitor:
+    include:
+    - common
+    fields:
+      action:
+        label: Action
+        section: 3c. Mailbox and post-action
+        kind: enum
+        values:
+          Mark As Read: 1
+          Delete: 2
+          Delete/Mark As Read: 3
+          Move: 4
+          Move/Mark As Read: 5
+        default: Mark As Read
+      bodyVariables:
+        section: 3d. Body variables and content processing (optional)
+        kind: enum
+        values:
+          None: 0
+          Within Body: 1
+          Within Default Markers: 2
+          Within Custom Markers: 3
+        default: None
+      connection:
+        label: Email Connection
+        section: 3a. Connection and credentials
+        kind: text
+        required: true
+      connectionVar:
+        label: Email Connection Unresolved
+        section: 3a. Connection and credentials
+        kind: text
+        required: cond
+      contentProcessingType:
+        section: 3d. Body variables and content processing (optional)
+        kind: enum
+        values:
+          None: 0
+          Success Body Contains: 1
+          Failure Body Contains: 2
+          Success Body Does Not Contain: 3
+          Failure Body Does Not Contain: 4
+        default: None
+      expirationAction:
+        label: Expiration Action
+        section: 3f. Common monitor plumbing
+        kind: enum
+        values:
+          Failed: 1
+          Finished: 2
+        default: Failed
+      filterLogic:
+        default: And
+      includeReadEmail:
+        label: Include Read Mail
+        section: 3c. Mailbox and post-action
+        kind: boolean
+      mailboxFolder:
+        label: Mailbox Folder
+        section: 3c. Mailbox and post-action
+        kind: text
+        default: INBOX
+        required: true
+      mailboxFolderDestination:
+        label: Destination Folder
+        section: 3c. Mailbox and post-action
+        kind: text
+        required: cond
+      moveToTrash:
+        label: Move To Trash
+        section: 3c. Mailbox and post-action
+        kind: boolean
+      sentRestriction:
+        section: 3e. Date restrictions (optional)
+        kind: enum
+        values:
+          None: 0
+          'On': 1
+          Before: 2
+          After: 3
+          Span: 4
+        default: None
+      timeLimit:
+        label: Time Limit
+        section: 3f. Common monitor plumbing
+        kind: text
+      timeLimitUnit:
+        label: Time Limit Unit
+        section: 3f. Common monitor plumbing
+        kind: enum
+        values:
+          Minutes: 2
+          Hours: 3
+          Days: 4
+        default: Hours
+      useExitCode:
+        label: Use Exit Code On Failed
+        section: 3f. Common monitor plumbing
+        kind: boolean
+  taskFileMonitor:
+    include:
+    - common
+    - agent_task
+    fields:
+      fileGroup:
+        label: Group
+        section: 3c. Optional attributes
+        kind: text
+      fileName:
+        label: Monitor File(s)
+        section: 3a. What to monitor
+        kind: text
+        required: true
+      fileOwner:
+        label: File Owner
+        section: 3c. Optional attributes
+        kind: text
+      fmtype:
+        label: Monitor Type
+        section: 3a. What to monitor
+        kind: enum
+        values:
+          Created: 1
+          Deleted: 2
+          Changed: 3
+          Exist: 4
+          Missing: 5
+        ui_labels:
+          Create: Created
+          Delete: Deleted
+          Change: Changed
+          Exists: Exist
+        default: Created
+      jobname:
+        label: Jobname (z/OS only)
+        section: 3c. Optional attributes
+        kind: text
+      maxFiles:
+        label: Maximum Files
+        section: 3a. What to monitor
+        kind: integer
+      recursive:
+        label: Recursive
+        section: 3a. What to monitor
+        kind: boolean
+      useExitCode:
+        label: Use Exit Code On Failed
+        section: 3c. Optional attributes
+        kind: boolean
+      useRegex:
+        label: Use Regular Expression
+        section: 3a. What to monitor
+        kind: boolean
+  taskFtp:
+    include:
+    - common
+    - agent_task
+    fields:
+      authenticatePeer:
+        label: Authenticate Peer
+        section: 3b. Classic FTP mode (`serverType` = FTP / SFTP / FTPS / FTPES)
+        kind: boolean
+      command:
+        label: Command
+        section: 3b. Classic FTP mode (`serverType` = FTP / SFTP / FTPS / FTPES)
+        kind: enum
+        values:
+          GET: 1
+          PUT: 2
+          MGET: 3
+          MPUT: 4
+          DELETE: 5
+          MDELETE: 6
+          MKDIR: 7
+          RMDIR: 8
+        default: GET
+        required: true
+      exitCodeProcessing:
+        kind: enum
+        values:
+          Success Exitcode Range: 1
+          Failure Exitcode Range: 2
+          Success Output Contains: 3
+          Failure Output Contains: 4
+        default: Success Exitcode Range
+      formOrScript:
+        label: Form or Script
+        section: 3c. UDM / Universal Data Mover mode (`serverType` = UDM)
+        kind: enum
+        values:
+          Form: 1
+          Script: 2
+        required: true
+      format:
+        label: Transfer Type
+        section: 3b. Classic FTP mode (`serverType` = FTP / SFTP / FTPS / FTPES)
+        kind: enum
+        values:
+          Binary: 1
+          ASCII: 2
+        default: Binary
+      jobcard:
+        label: Job Card (z/OS only)
+        section: 3b. Classic FTP mode (`serverType` = FTP / SFTP / FTPS / FTPES)
+        kind: text
+        required: cond
+      localFilename:
+        label: Local Filename
+        section: 3b. Classic FTP mode (`serverType` = FTP / SFTP / FTPS / FTPES)
+        kind: text
+        required: true
+      move:
+        label: Move
+        section: 3b. Classic FTP mode (`serverType` = FTP / SFTP / FTPS / FTPES)
+        kind: boolean
+      primaryBrokerChoice:
+        label: Primary UDM Agent Option
+        section: 3c. UDM / Universal Data Mover mode (`serverType` = UDM)
+        kind: enum
+        values:
+          None: 0
+          Agent: 1
+          Agent Cluster: 5
+          Agent Hostname: 3
+          Utility Agent: 4
+        ui_labels:
+          UDM Agent: Agent
+          UDM Agent Cluster: Agent Cluster
+          UDM Agent Hostname: Agent Hostname
+        required: true
+      remoteCredVar:
+        label: FTP Credentials Unresolved
+        section: 3b. Classic FTP mode (`serverType` = FTP / SFTP / FTPS / FTPES)
+        kind: text
+        required: true
+      remoteCredentials:
+        label: FTP Credentials
+        section: 3b. Classic FTP mode (`serverType` = FTP / SFTP / FTPS / FTPES)
+        kind: text
+        required: true
+      remoteFilename:
+        label: Remote Filename
+        section: 3b. Classic FTP mode (`serverType` = FTP / SFTP / FTPS / FTPES)
+        kind: text
+        required: true
+      remoteServer:
+        label: Remote Server
+        section: 3b. Classic FTP mode (`serverType` = FTP / SFTP / FTPS / FTPES)
+        kind: text
+        required: true
+      script:
+        label: Script
+        section: 3c. UDM / Universal Data Mover mode (`serverType` = UDM)
+        kind: text
+        required: cond
+      secondaryBrokerChoice:
+        label: Secondary UDM Agent Option
+        section: 3c. UDM / Universal Data Mover mode (`serverType` = UDM)
+        kind: enum
+        values:
+          None: 0
+          Agent: 1
+          Agent Cluster: 5
+          Agent Hostname: 3
+        ui_labels:
+          UDM Agent: Agent
+          UDM Agent Cluster: Agent Cluster
+          UDM Agent Hostname: Agent Hostname
+        required: true
+      serverType:
+        section: 3a. Transfer protocol (required, selects the mode)
+        kind: enum
+        values:
+          FTP: 1
+          SFTP: 2
+          UDM: 3
+          FTPS: 4
+          FTPES: 5
+        default: UDM
+      transferDirection:
+        label: Transfer Direction
+        section: 3c. UDM / Universal Data Mover mode (`serverType` = UDM)
+        kind: enum
+        values:
+          PUT: 1
+          GET: 2
+        required: cond
+      transferMode:
+        label: Transfer Mode
+        section: 3b. Classic FTP mode (`serverType` = FTP / SFTP / FTPS / FTPES)
+        kind: enum
+        values:
+          Active: 1
+          Passive: 2
+          Extended Passive: 3
+        default: Passive
+      udmOperation:
+        label: UDM Operation
+        section: 3c. UDM / Universal Data Mover mode (`serverType` = UDM)
+        kind: enum
+        values:
+          Copy: 1
+          Move: 2
+          Delete: 3
+          Rename: 4
+          List: 5
+          Copy Directory: 6
+          Create Directory: 7
+          Delete Directory: 8
+        required: cond
+      useRegex:
+        label: Use Regular Expression
+        section: 3b. Classic FTP mode (`serverType` = FTP / SFTP / FTPS / FTPES)
+        kind: boolean
+      verifyHostName:
+        label: Verify Host Name
+        section: 3b. Classic FTP mode (`serverType` = FTP / SFTP / FTPS / FTPES)
+        kind: boolean
+  taskFtpFileMonitor:
+    include:
+    - common
+    - agent_task
+    fields:
+      authenticatePeer:
+        label: Authenticate Peer
+        section: 3a. Server and protocol
+        kind: boolean
+      ftpFmtype:
+        label: Monitor Type
+        section: 3b. What to monitor
+        kind: enum
+        values:
+          Exist: 1
+          Missing: 2
+        ui_labels:
+          Exists: Exist
+        default: Exist
+      jobcard:
+        label: Job Card (z/OS only)
+        section: 3e. z/OS
+        kind: text
+        required: cond
+      listOptions:
+        label: Additional FTP Commands
+        section: 3a. Server and protocol
+        kind: text
+      minFileScale:
+        label: Minimum File Scale
+        section: 3b. What to monitor
+        kind: enum
+        values:
+          Bytes: 0
+          KB: 1
+          MB: 2
+        default: KB
+        required: cond
+      minFileSize:
+        label: Minimum File Size
+        section: 3b. What to monitor
+        kind: text
+      pollInterval:
+        label: Poll Interval (Seconds)
+        section: 3c. Wait / poll
+        kind: integer
+        default: 30
+        required: cond
+      pollMaximum:
+        label: Maximum Polls
+        section: 3c. Wait / poll
+        kind: integer
+      remoteCredVar:
+        label: FTP Credentials Unresolved
+        section: 3d. FTP server credentials (optional)
+        kind: text
+      remoteCredentials:
+        label: FTP Credentials
+        section: 3d. FTP server credentials (optional)
+        kind: text
+      remoteFilename:
+        label: Remote Filename
+        section: 3b. What to monitor
+        kind: text
+        required: true
+      remoteServer:
+        label: Remote Server
+        section: 3a. Server and protocol
+        kind: text
+        required: true
+      servertype:
+        label: Server Type
+        section: 3a. Server and protocol
+        kind: enum
+        values:
+          FTP: 1
+          SFTP: 2
+          FTPS: 4
+          FTPES: 5
+        required: true
+      stableSeconds:
+        label: Stable (Seconds)
+        section: 3c. Wait / poll
+        kind: integer
+      transferMode:
+        label: Transfer Mode
+        section: 3a. Server and protocol
+        kind: enum
+        values:
+          Active: 1
+          Passive: 2
+          Extended Passive: 3
+        default: Passive
+      useRegex:
+        label: Use Regular Expression
+        section: 3b. What to monitor
+        kind: boolean
+      verifyHostName:
+        label: Verify Host Name
+        section: 3a. Server and protocol
+        kind: boolean
+      wait:
+        label: Wait until Satisfied
+        section: 3c. Wait / poll
+        kind: boolean
+  taskIbmi:
+    include:
+    - common
+    - agent_task
+    - distributed_agent_task
+    fields:
+      commandOrScript:
+        category: Command vs Script
+        kind: enum
+        values:
+          Command: 1
+          Script: 2
+        default: Command
+        label: Command or Script
+        section: 'Important: `commandType` is NOT the same as `commandOrScript`'
+      commandType:
+        section: '`commandType` (Command Type)'
+        kind: enum
+        values:
+          CL: 1
+          REXX: 2
+          PASE: 3
+          SBMJOB: 4
+        default: CL
+      endSeverity:
+        kind: integer
+        default: 30
+      jobDescription:
+        label: Job Description
+        section: Submitted-job attributes (used only when `commandType` is `4` SBMJOB)
+        kind: text
+      jobName:
+        label: Job Name
+        section: Submitted-job attributes (used only when `commandType` is `4` SBMJOB)
+        kind: text
+      jobPriority:
+        label: Job Priority
+        section: Submitted-job attributes (used only when `commandType` is `4` SBMJOB)
+        kind: text
+      jobQueue:
+        label: Job Queue
+        section: Submitted-job attributes (used only when `commandType` is `4` SBMJOB)
+        kind: text
+      outputPriority:
+        label: Output Priority
+        section: Submitted-job attributes (used only when `commandType` is `4` SBMJOB)
+        kind: text
+      outputQueue:
+        label: Output Queue
+        section: Submitted-job attributes (used only when `commandType` is `4` SBMJOB)
+        kind: text
+      printDevice:
+        label: Print Device
+        section: Submitted-job attributes (used only when `commandType` is `4` SBMJOB)
+        kind: text
+  taskManual:
+    include:
+    - common
+    exclude:
+    - credentials
+    - credentialsVar
+    - retryIndefinitely
+    - retryInterval
+    - retryMaximum
+    - retrySuppressFailure
+  taskMonitor:
+    include:
+    - common
+    exclude:
+    - credentials
+    - credentialsVar
+    - retryIndefinitely
+    - retryInterval
+    - retryMaximum
+    - retrySuppressFailure
+    - twDelayAmount
+    - twDelayDuration
+    - twDelayType
+    - twWaitAmount
+    - twWaitDayConstraint
+    - twWaitDuration
+    - twWaitTime
+    - twWaitType
+    - twWorkflowOnly
+    fields:
+      expirationAction:
+        label: Expiration Action
+        section: 3d. Time scope
+        kind: enum
+        values:
+          Failed: 1
+          Finished: 2
+          Failed If Potential Match Found Else Finished: 3
+          Finished If Potential Match Found Else Failed: 4
+        default: Failed
+      monType:
+        section: 3a. What to monitor (monitor type)
+        kind: enum
+        values:
+          Specific: 1
+          General: 2
+        ui_labels:
+          Specific Task: Specific
+          General Task(s): General
+        default: Specific
+      monitorEarlyFinish:
+        label: Monitor Early Finish
+        section: 3b. Status condition (at least one required)
+        kind: boolean
+      monitorLateFinish:
+        label: Monitor Late Finish
+        section: 3b. Status condition (at least one required)
+        kind: boolean
+      monitorLateStart:
+        label: Monitor Late Start
+        section: 3b. Status condition (at least one required)
+        kind: boolean
+      relativeTimeFrom:
+        label: Time Scope From
+        section: 3d. Time scope
+        kind: text
+        required: cond
+      relativeTimeTo:
+        label: Time Scope To
+        section: 3d. Time scope
+        kind: text
+      statusText:
+        label: Status To Monitor
+        section: 3b. Status condition (at least one required)
+      taskNameLookup:
+        label: Task Name Condition
+        section: 3a. What to monitor (monitor type)
+        kind: enum
+        values:
+          -- None --: 1
+          Starts With: 2
+          Contains: 3
+          Ends With: 4
+          Equals: 5
+          Wildcard: 6
+        required: cond
+      taskNameValue:
+        label: Task Name
+        section: 3a. What to monitor (monitor type)
+        kind: text
+        required: cond
+      taskNameValueResolve:
+        label: Resolve Task Name Condition
+        section: 3a. What to monitor (monitor type)
+        kind: boolean
+      timeScope:
+        label: Time Scope
+        section: 3d. Time scope
+        kind: enum
+        values:
+          -- None --: 0
+          Relative: 1
+          Relative / Last Run: 2
+        default: -- None --
+        required: true
+      typeText:
+        label: Task Type To Monitor
+        section: 3a. What to monitor (monitor type)
+        required: cond
+      useExitCode:
+        label: Use Exit Code On Failed
+        section: 3d. Time scope
+        kind: boolean
+      wfConditionType:
+        label: Workflow Name Condition
+        section: 3c. Workflow scope (optional)
+        kind: enum
+        values:
+          -- None --: 0
+          Equals: 1
+          Starts With: 2
+          Contains: 3
+          Ends With: 4
+          Wildcard: 5
+        default: -- None --
+      wfConditionValue:
+        label: Workflow Name
+        section: 3c. Workflow scope (optional)
+        kind: text
+        required: cond
+  taskPeoplesoft:
+    include:
+    - common
+    - agent_task
+    fields:
+      command:
+        section: 3b. Command (what to schedule)
+        kind: enum
+        values:
+          Schedule Process: 1
+          Schedule Job: 2
+          Run Jobset: 3
+        default: Schedule Process
+      connection:
+        label: PeopleSoft Connection
+        section: 3a. PeopleSoft connection and credentials
+        kind: text
+        required: cond
+      connectionVar:
+        label: PeopleSoft Connection Unresolved
+        section: 3a. PeopleSoft connection and credentials
+        kind: text
+        required: cond
+      exitCodeProcessing:
+        section: 3c. Exit-code processing and output retrieval
+        kind: enum
+        values:
+          Success Exitcode Range: 1
+          Failure Exitcode Range: 2
+          Success Output Contains: 3
+          Failure Output Contains: 4
+        ui_labels:
+          Standard Output: STDOUT
+          Standard Error: STDERR
+          File: FILE
+        default: Success Exitcode Range
+      outputReturnType:
+        section: 3c. Exit-code processing and output retrieval
+        kind: enum
+        values:
+          NONE: 1
+          STDOUT: 2
+          STDERR: 3
+          OUTERR: 6
+          FILE: 4
+        ui_labels:
+          -- None --: NONE
+          Standard Output: STDOUT
+          Standard Error: STDERR
+          Standard Output/Error: OUTERR
+          File: FILE
+        default: OUTERR
+      psCredentials:
+        label: PeopleSoft Credentials
+        section: 3a. PeopleSoft connection and credentials
+        kind: text
+        required: cond
+      psCredentialsVar:
+        label: PeopleSoft Credentials Unresolved
+        section: 3a. PeopleSoft connection and credentials
+        kind: text
+        required: cond
+  taskRecurring:
+    include:
+    - common
+    exclude:
+    - credentials
+    - credentialsVar
+    - retryIndefinitely
+    - retryInterval
+    - retryMaximum
+    - retrySuppressFailure
+    fields:
+      indefiniteRecurrences:
+        label: Indefinite Recurrences
+        section: 3c. Interval mode (`recurrenceType` = Interval)
+        kind: boolean
+        required: true
+      intervalEndDayConstraint:
+        label: Interval End Day Constraint
+        section: 3c. Interval mode (`recurrenceType` = Interval)
+        kind: enum
+        values:
+          None: 0
+          Same Day: 1
+          Next Day: 2
+          Next Business Day: 3
+          Sunday: 4
+          Monday: 5
+          Tuesday: 6
+          Wednesday: 7
+          Thursday: 8
+          Friday: 9
+          Saturday: 10
+        required: cond
+      intervalEndTime:
+        label: Interval End Time
+        section: 3c. Interval mode (`recurrenceType` = Interval)
+        kind: text
+        format: HH:MM
+        required: cond
+      intervalStartDayConstraint:
+        label: Interval Start Day Constraint
+        section: 3c. Interval mode (`recurrenceType` = Interval)
+        kind: enum
+        values:
+          None: 0
+          Same Day: 1
+          Next Day: 2
+          Next Business Day: 3
+          Sunday: 4
+          Monday: 5
+          Tuesday: 6
+          Wednesday: 7
+          Thursday: 8
+          Friday: 9
+          Saturday: 10
+        required: cond
+      intervalStartTime:
+        label: Interval Start Time
+        section: 3c. Interval mode (`recurrenceType` = Interval)
+        kind: text
+        format: HH:MM
+        required: cond
+      numberOfRecurrences:
+        label: Number of Recurrences
+        section: 3c. Interval mode (`recurrenceType` = Interval)
+        kind: text
+        required: cond
+      overrideVariables:
+        label: Override Variables
+        section: 3e. Optional launch controls
+        kind: list
+      recurrenceInterval:
+        label: Recurrence Interval
+        section: 3c. Interval mode (`recurrenceType` = Interval)
+        kind: text
+        required: true
+      recurrenceIntervalUnit:
+        label: Recurrence Interval Unit
+        section: 3c. Interval mode (`recurrenceType` = Interval)
+        kind: enum
+        values:
+          Seconds: 1
+          Minutes: 2
+          Hours: 3
+        default: Minutes
+        required: true
+      recurrenceTimeList:
+        label: Recurrence Time List
+        section: 3d. On mode (`recurrenceType` = On)
+        kind: list
+        required: true
+      recurrenceType:
+        section: 3b. Recurrence type (required)
+        kind: enum
+        values:
+          Interval: 1
+          'On': 2
+        default: Interval
+      skipCondition:
+        label: Task Launch Skip Condition
+        section: 3e. Optional launch controls
+        kind: enum
+        values:
+          None: 0
+          Active: 1
+          Active By Recurring Task Instance: 2
+        required: true
+      targetTask:
+        label: Target Task
+        section: 3a. Target task (required)
+        kind: text
+        required: true
+      targetTaskMonitorCondition:
+        label: Target Task Monitor Condition
+        section: 3e. Optional launch controls
+        kind: enum
+        values:
+          None: 0
+          First Recurrence: 1
+          Last Recurrence: 2
+          All Recurrences: 3
+        required: true
+      targetTaskStatusText:
+        label: Status Names To Monitor
+        section: 3e. Optional launch controls
+        required: cond
+      timeWindow:
+        label: Time Window
+        section: 3c. Interval mode (`recurrenceType` = Interval)
+        kind: boolean
+  taskSap:
+    include:
+    - common
+    - agent_task
+    fields:
+      commandOptions:
+        label: SAP Command Options
+        section: 3c. SAP job (what to submit)
+        kind: text
+      environment:
+        label: Environment Variables
+        section: 3c. SAP job (what to submit)
+        kind: list
+      exitCodeOutput:
+        label: Output File
+        section: 3e. Result processing - exit-code processing (how success/failure is decided)
+        kind: text
+      exitCodeProcessing:
+        label: Exit Code Processing
+        section: 3e. Result processing - exit-code processing (how success/failure is decided)
+        kind: enum
+        values:
+          Success Exitcode Range: 1
+          Failure Exitcode Range: 2
+          Success Output Contains: 3
+          Failure Output Contains: 4
+        default: Success Exitcode Range
+      exitCodeText:
+        label: Scan Output For
+        section: 3e. Result processing - exit-code processing (how success/failure is decided)
+        kind: text
+      exitCodes:
+        label: Exit Codes
+        section: 3e. Result processing - exit-code processing (how success/failure is decided)
+        kind: text
+        format: 1,5,22-30
+      immediate:
+        label: Start Immediately
+        section: 3c. SAP job (what to submit)
+        kind: boolean
+      jobClass:
+        label: SAP Job Class
+        section: 3c. SAP job (what to submit)
+        kind: enum
+        values:
+          High Priority: 1
+          Middle Priority: 2
+          Low Priority: 3
+        default: Low Priority
+      jobLog:
+        label: Print Job Log
+        section: 3c. SAP job (what to submit)
+        kind: boolean
+      jobLogChild:
+        label: Job Log Child
+        section: 3d. Child job monitoring (optional)
+        kind: enum
+        values:
+          'Yes': 1
+          'No': 2
+          Error: 3
+        default: 'Yes'
+      jobName:
+        label: SAP Job Name
+        section: 3c. SAP job (what to submit)
+        kind: text
+        required: true
+      maxChildDepth:
+        label: Max Child Depth
+        section: 3d. Child job monitoring (optional)
+        kind: integer
+        required: cond
+      monitorSteps:
+        label: Monitor Steps
+        section: 3d. Child job monitoring (optional)
+        kind: boolean
+      outputFailureOnly:
+        label: Failure Only
+        section: 3f. Automatic output retrieval (optional)
+        kind: boolean
+      outputReturnFile:
+        label: Automatic Output File
+        section: 3f. Automatic output retrieval (optional)
+        kind: text
+        required: cond
+      outputReturnNline:
+        label: Number of Lines
+        section: 3f. Automatic output retrieval (optional)
+        kind: integer
+      outputReturnSline:
+        label: Start Line
+        section: 3f. Automatic output retrieval (optional)
+        kind: integer
+        default: '1'
+      outputReturnText:
+        label: Scan Text
+        section: 3f. Automatic output retrieval (optional)
+        kind: text
+      outputReturnType:
+        label: Automatic Output Retrieval
+        section: 3f. Automatic output retrieval (optional)
+        kind: enum
+        values:
+          NONE: 1
+          STDOUT: 2
+          STDERR: 3
+          OUTERR: 6
+          FILE: 4
+        ui_labels:
+          -- None --: NONE
+          Standard Output: STDOUT
+          Standard Error: STDERR
+          Standard Output/Error: OUTERR
+          File: FILE
+        default: OUTERR
+      outputType:
+        label: Output Type
+        section: 3e. Result processing - exit-code processing (how success/failure is decided)
+        kind: enum
+        values:
+          STDOUT: 1
+          STDERR: 2
+          FILE: 3
+        ui_labels:
+          Standard Output: STDOUT
+          Standard Error: STDERR
+          File: FILE
+      printAppLog:
+        label: Print Application Log
+        section: 3c. SAP job (what to submit)
+        kind: boolean
+      printAppRc:
+        label: Print Application RC
+        section: 3c. SAP job (what to submit)
+        kind: boolean
+      purge:
+        label: Delete SAP Job on Completion
+        section: 3c. SAP job (what to submit)
+        kind: boolean
+      purgeChild:
+        label: Purge Child
+        section: 3d. Child job monitoring (optional)
+        kind: boolean
+      runtimeDir:
+        label: Runtime Directory
+        section: 3c. SAP job (what to submit)
+        kind: text
+      sapConnection:
+        label: SAP Connection
+        section: 3b. SAP connection and credentials
+        kind: text
+      sapConnectionVar:
+        label: SAP Connection Unresolved
+        section: 3b. SAP connection and credentials
+        kind: text
+      sapCred:
+        label: SAP Credentials
+        section: 3b. SAP connection and credentials
+        kind: text
+        required: cond
+      sapCredVar:
+        label: SAP Credentials Unresolved
+        section: 3b. SAP connection and credentials
+        kind: text
+        required: cond
+      sapView:
+        label: View
+        section: 3a. View (always Enhanced) - set automatically
+        kind: enum
+        values:
+          Legacy View: 1
+          Enhanced View: 2
+        required: true
+      spoollist:
+        label: Print Spooled Output
+        section: 3c. SAP job (what to submit)
+        kind: boolean
+      spoollistChild:
+        label: Spool List Child
+        section: 3d. Child job monitoring (optional)
+        kind: boolean
+      stepReport:
+        label: Step Report
+        section: 3d. Child job monitoring (optional)
+        kind: boolean
+      targetServer:
+        label: SAP Target Server
+        section: 3c. SAP job (what to submit)
+        kind: text
+        required: true
+      useAppRc:
+        label: Use Application RC
+        section: 3c. SAP job (what to submit)
+        kind: boolean
+      waitChild:
+        label: Wait Child
+        section: 3d. Child job monitoring (optional)
+        kind: boolean
+      waitForOutput:
+        label: Wait For Output
+        section: 3f. Automatic output retrieval (optional)
+        kind: boolean
+    sub_objects:
+      emailNotification:
+        language:
+          label: Execution Language
+          section: 3i. Job Steps (the SAP job definition)
+          kind: text
+      jobSteps:
+        programName:
+          label: Name
+          section: 3i. Job Steps (the SAP job definition)
+          kind: text
+          required: true
+        stepOrder:
+          label: Step Order
+          section: 3i. Job Steps (the SAP job definition)
+          kind: integer
+        userCredentials:
+          label: SAP User Credentials
+          section: 3i. Job Steps (the SAP job definition)
+          kind: text
+        userCredentialsVar:
+          label: SAP User Credentials Unresolved
+          section: 3i. Job Steps (the SAP job definition)
+          kind: text
+        username:
+          label: SAP User Name
+          section: 3i. Job Steps (the SAP job definition)
+          kind: text
+      notes:
+        title:
+          label: Title
+          section: 3i. Job Steps (the SAP job definition)
+          kind: text
+  taskSleep:
+    include:
+    - common
+    exclude:
+    - credentials
+    - credentialsVar
+    - retryIndefinitely
+    - retryInterval
+    - retryMaximum
+    - retrySuppressFailure
+    - twDelayAmount
+    - twDelayDuration
+    - twDelayType
+    - twWaitAmount
+    - twWaitDayConstraint
+    - twWaitDuration
+    - twWaitTime
+    - twWaitType
+    - twWorkflowOnly
+    fields:
+      sleepAmount:
+        applies_when:
+          sleepType:
+          - Seconds
+          - null
+        required_when:
+          sleepType:
+          - Seconds
+          - null
+      sleepDayConstraint:
+        section: An explicit "Timer Type of X" ALWAYS wins over the units
+        default: None
+        kind: enum
+        values:
+          None: 0
+          Same Day: 1
+          Next Day: 2
+          Next Business Day: 3
+          Sunday: 4
+          Monday: 5
+          Tuesday: 6
+          Wednesday: 7
+          Thursday: 8
+          Friday: 9
+          Saturday: 10
+        applies_when:
+          sleepType:
+          - Time
+          - Relative Time
+      sleepDuration:
+        format: DD:HH:MM:SS
+        applies_when:
+          sleepType:
+          - Duration
+        required_when:
+          sleepType:
+          - Duration
+      sleepTime:
+        format: HH:MM
+        applies_when:
+          sleepType:
+          - Time
+          - Relative Time
+        required_when:
+          sleepType:
+          - Time
+          - Relative Time
+      sleepType:
+        section: Step 3 - Timer Details (task-type-specific fields)
+        kind: enum
+        values:
+          Time: 1
+          Relative Time: 4
+          Duration: 2
+          Seconds: 3
+        default: Seconds
+  taskSql:
+    include:
+    - common
+    - database_task
+    fields:
+      columnOp:
+        label: Operator
+        section: Step 3 - SQL-specific fields
+        kind: enum
+        values:
+          '=': 1
+          '!=': 2
+          '>': 3
+          '>=': 4
+          <: 5
+          <=: 6
+          regex: 7
+        default: '='
+        required: cond
+      columnValue:
+        label: Value
+        section: Step 3 - SQL-specific fields
+        kind: text
+      sqlCommand:
+        label: SQL Command
+        section: Step 3 - SQL-specific fields
+        kind: text
+        required: true
+  taskStoredProc:
+    include:
+    - common
+    - database_task
+    fields:
+      parameterPosition:
+        label: Parameter Position
+        section: Step 3 - Stored-Procedure-specific fields
+        kind: integer
+        default: 1
+        required: cond
+      resultOp:
+        label: Result Operator
+        section: Step 3 - Stored-Procedure-specific fields
+        kind: enum
+        values:
+          '=': 1
+          '!=': 2
+          '>': 3
+          '>=': 4
+          <: 5
+          <=: 6
+          regex: 7
+        default: '='
+        required: cond
+      resultValue:
+        label: Result Value
+        section: Step 3 - Stored-Procedure-specific fields
+        kind: text
+        required: cond
+      storedProcName:
+        label: Stored Procedure Name
+        section: Step 3 - Stored-Procedure-specific fields
+        kind: text
+        required: true
+      storedProcParams:
+        label: Stored Procedure Parameters
+        section: Step 3 - Stored-Procedure-specific fields
+        kind: list
+  taskSystemMonitor:
+    include:
+    - common
+    - agent_task
+    fields:
+      byScale:
+        label: By Scale
+        section: Step 3 - System Monitor-specific fields
+        kind: enum
+        values:
+          KB: 1
+          MB: 2
+          GB: 3
+        default: MB
+        required: true
+      condition:
+        label: Condition
+        section: Step 3 - System Monitor-specific fields
+        kind: enum
+        values:
+          '>': 1
+          <: 2
+        ui_labels:
+          Greater Than: '>'
+          Less Than: <
+        default: '>'
+      drive:
+        label: Mount Point or Drive
+        section: Step 3 - System Monitor-specific fields
+        kind: text
+        required: true
+      freeSize:
+        label: Resource Available
+        section: Step 3 - System Monitor-specific fields
+        kind: number
+        required: true
+      smtype:
+        label: Monitor Type
+        section: Step 3 - System Monitor-specific fields
+        kind: enum
+        values:
+          DISKFREESPC: 1
+        ui_labels:
+          Diskspace Free: DISKFREESPC
+        default: DISKFREESPC
+      useExitCode:
+        label: Use Exit Code On Failed
+        section: Step 3 - System Monitor-specific fields
+        kind: boolean
+  taskUcmd:
+    include:
+    - common
+    - agent_task
+    fields:
+      brokerChoice:
+        section: 3b. Target UCMD agent (broker) - required
+        kind: enum
+        values:
+          Agent: 1
+          Agent Variable: 2
+          Agent Hostname: 3
+        ui_labels:
+          UCMD Agent: Agent
+          UCMD Agent Variable: Agent Variable
+          UCMD Agent Hostname: Agent Hostname
+        default: Agent
+      brokerCred:
+        label: UCMD Credentials
+        section: 3c. Broker credentials (required)
+      brokerCredVar:
+        label: UCMD Credentials Unresolved
+        section: 3c. Broker credentials (required)
+      commandOrScript:
+        section: 3a. Command vs Script (one required)
+        kind: enum
+        values:
+          Command: 1
+          Script: 2
+        default: Command
+      exitCodeProcessing:
+        section: 3d. Exit-code processing (how success/failure is decided)
+        kind: enum
+        values:
+          Success Exitcode Range: 1
+          Failure Exitcode Range: 2
+          Success Output Contains: 3
+          Failure Output Contains: 4
+        default: Success Exitcode Range
+      outputFailureOnly:
+        label: Failure Only
+        section: 3e. Automatic output retrieval (optional)
+        kind: boolean
+      outputReturnFile:
+        label: Automatic Output File
+        section: 3e. Automatic output retrieval (optional)
+        kind: text
+        required: cond
+      outputReturnNline:
+        label: Number of Lines
+        section: 3e. Automatic output retrieval (optional)
+        kind: integer
+      outputReturnSline:
+        label: Start Line
+        section: 3e. Automatic output retrieval (optional)
+        kind: integer
+        default: '1'
+      outputReturnText:
+        label: Scan Text
+        section: 3e. Automatic output retrieval (optional)
+        kind: text
+      outputReturnType:
+        label: Automatic Output Retrieval
+        section: 3e. Automatic output retrieval (optional)
+        kind: enum
+        values:
+          NONE: 1
+          STDOUT: 2
+          STDERR: 3
+          OUTERR: 6
+          FILE: 4
+        ui_labels:
+          -- None --: NONE
+          Standard Output: STDOUT
+          Standard Error: STDERR
+          Standard Output/Error: OUTERR
+          File: FILE
+        default: OUTERR
+      waitForOutput:
+        label: Wait For Output
+        section: 3e. Automatic output retrieval (optional)
+        kind: boolean
+  taskUniversal:
+    doc: null
+    include:
+    - common
+  taskUniversalMonitor:
+    include:
+    - common
+    fields:
+      eventBusinessServiceCriteria:
+        label: Event Business Service Criteria
+        section: 3b. Match filter and business-service scope
+        kind: enum
+        values:
+          Member of Any Business Service or Unassigned: 1
+          Member of Specific Business Services or Unassigned: 2
+          Member of Specific Business Services: 3
+          Unassigned: 4
+          Not Member of Specific Business Services or Unassigned: 5
+          Not Member of Specific Business Services: 6
+        default: Member of Any Business Service or Unassigned
+        required: true
+      eventBusinessServices:
+        label: Specific Business Services
+        section: 3b. Match filter and business-service scope
+        kind: list
+        required: cond
+      eventType:
+        section: 3a. Event type and template (required)
+        kind: enum
+        values:
+          Global: 1
+          Local: 2
+        default: Global
+      expirationAction:
+        label: Expiration Action
+        section: 3d. Time scope and outcome
+        kind: enum
+        values:
+          Failed: 1
+          Finished: 2
+        default: Failed
+      filter:
+        label: Filter
+        section: 3b. Match filter and business-service scope
+        kind: object
+      relativeTimeFrom:
+        label: Time Scope From
+        section: 3d. Time scope and outcome
+        kind: text
+        required: cond
+      relativeTimeTo:
+        label: Time Scope To
+        section: 3d. Time scope and outcome
+        kind: text
+      taskUniversal:
+        label: Universal Task Publisher
+        section: 3c. Universal Task Publisher (optional)
+        kind: text
+      taskUniversalVariables:
+        label: Universal Task Publisher Variables
+        section: 3c. Universal Task Publisher (optional)
+        kind: list
+      timeScope:
+        label: Time Scope
+        section: 3d. Time scope and outcome
+        kind: enum
+        values:
+          -- None --: 0
+          Relative: 1
+        default: -- None --
+        required: true
+      useExitCode:
+        label: Use Exit Code On Failed
+        section: 3d. Time scope and outcome
+        kind: boolean
+  taskUnix:
+    include:
+    - common
+    - agent_task
+    - distributed_agent_task
+  taskVariableMonitor:
+    include:
+    - common
+    exclude:
+    - credentials
+    - credentialsVar
+    - retryIndefinitely
+    - retryInterval
+    - retryMaximum
+    - retrySuppressFailure
+    fields:
+      expirationAction:
+        label: Expiration Action
+        section: Step 3 - Variable Monitor-specific fields
+        kind: enum
+        values:
+          Failed: 1
+          Finished: 2
+        default: Failed
+      timeLimit:
+        label: Time Limit
+        section: Step 3 - Variable Monitor-specific fields
+        kind: text
+      timeLimitUnit:
+        label: Time Limit Unit
+        section: Step 3 - Variable Monitor-specific fields
+        kind: enum
+        values:
+          Minutes: 2
+          Hours: 3
+          Days: 4
+        default: Hours
+        required: cond
+      useExitCode:
+        label: Use Exit Code On Failed
+        section: Step 3 - Variable Monitor-specific fields
+        kind: boolean
+      value:
+        label: Value
+        section: Step 3 - Variable Monitor-specific fields
+        kind: text
+      valueCondition:
+        label: Value Condition
+        section: Step 3 - Variable Monitor-specific fields
+        kind: enum
+        values:
+          -- None --: 0
+          '=': 1
+          '!=': 2
+          '>': 3
+          '>=': 4
+          <: 5
+          <=: 6
+          regex: 7
+          undefined: 8
+        default: '='
+        required: cond
+      valueMonitorType:
+        label: Value Monitor Type
+        section: Step 3 - Variable Monitor-specific fields
+        kind: enum
+        values:
+          Current: 1
+          Change: 2
+          Current/Change: 3
+        default: Current
+        required: true
+      variableName:
+        label: Variable To Monitor
+        section: Step 3 - Variable Monitor-specific fields
+        kind: text
+        required: true
+  taskWebService:
+    include:
+    - common
+    fields:
+      formData:
+        label: Form Data
+        section: 3b. HTTP(S)/REST fields (`protocol` = HTTP(S)/REST)
+        kind: list
+        required: cond
+      httpAuth:
+        label: HTTP Authentication
+        section: 3a. Endpoint and protocol (always)
+        kind: enum
+        values:
+          None: 0
+          Basic: 1
+        default: None
+        required: true
+      httpHeaders:
+        label: HTTP Headers
+        section: 3a. Endpoint and protocol (always)
+        kind: list
+      httpMethod:
+        label: HTTP Method
+        section: 3b. HTTP(S)/REST fields (`protocol` = HTTP(S)/REST)
+        kind: enum
+        values:
+          GET: 1
+          POST: 2
+          PUT: 3
+          PATCH: 4
+          DELETE: 5
+        default: POST
+        required: true
+      httpPayloadType:
+        label: HTTP Payload Type
+        section: 3b. HTTP(S)/REST fields (`protocol` = HTTP(S)/REST)
+        kind: enum
+        values:
+          Raw: 1
+          Form Data: 2
+        default: Raw
+        required: cond
+      httpVersion:
+        label: HTTP Version
+        section: 3a. Endpoint and protocol (always)
+        kind: enum
+        values:
+          '1.0': 1
+          '1.1': 2
+        default: '1.1'
+        required: true
+      insecure:
+        label: Insecure
+        section: 3a. Endpoint and protocol (always)
+        kind: boolean
+      mimeType:
+        label: MIME Type
+        section: 3b. HTTP(S)/REST fields (`protocol` = HTTP(S)/REST)
+        kind: text
+        required: cond
+      payload:
+        label: Payload
+        section: 3b. HTTP(S)/REST fields (`protocol` = HTTP(S)/REST)
+        kind: text
+        required: cond
+      payloadScript:
+        label: Payload Script
+        section: 3b. HTTP(S)/REST fields (`protocol` = HTTP(S)/REST)
+        kind: text
+        required: cond
+      payloadSource:
+        label: Payload Source
+        section: 3b. HTTP(S)/REST fields (`protocol` = HTTP(S)/REST)
+        kind: enum
+        values:
+          Form: 1
+          Script: 2
+        required: cond
+        default: Form
+      protocol:
+        label: Protocol
+        section: 3a. Endpoint and protocol (always)
+        kind: enum
+        values:
+          HTTP(S)/REST: 1
+          SOAP: 2
+        default: HTTP(S)/REST
+        required: true
+      responseProcessingType:
+        section: 3e. Response processing (always)
+        kind: enum
+        values:
+          Default Success Status Code Range: 1
+          Success Status Code Range: 2
+          Failure Status Code Range: 3
+          Success Output Contains: 4
+          Failure Output Contains: 5
+        default: Default Success Status Code Range
+      soapAction:
+        label: SOAP Action
+        section: 3c. SOAP fields (`protocol` = SOAP)
+        kind: text
+      soapPayloadType:
+        label: SOAP Payload Type
+        section: 3c. SOAP fields (`protocol` = SOAP)
+        kind: enum
+        values:
+          Body: 1
+          Envelope: 2
+        default: Body
+        required: true
+      soapResponseOutput:
+        label: SOAP Response Output
+        section: 3c. SOAP fields (`protocol` = SOAP)
+        kind: enum
+        values:
+          Body/First Element: 1
+          Body: 2
+          Envelope: 3
+        default: Body/First Element
+        required: true
+      soapVersion:
+        label: SOAP Version
+        section: 3c. SOAP fields (`protocol` = SOAP)
+        kind: enum
+        values:
+          '1.1': 1
+          '1.2': 2
+        default: '1.2'
+        required: true
+      timeout:
+        label: Timeout
+        section: 3a. Endpoint and protocol (always)
+        kind: integer
+      url:
+        label: URL
+        section: 3a. Endpoint and protocol (always)
+        kind: text
+        required: true
+      urlParameters:
+        label: URL Query Parameters
+        section: 3a. Endpoint and protocol (always)
+        kind: list
+  taskWindows:
+    include:
+    - common
+    - agent_task
+    - distributed_agent_task
+    exclude:
+    - runAsSudo
+  taskWorkflow:
+    doc: null
+    include:
+    - common
+  taskZos:
+    include:
+    - common
+    - agent_task
+    fields:
+      autoRestartOption:
+        label: Auto-Restart Option
+        section: 3e. Automatic output retrieval and auto-restart (optional)
+        kind: enum
+        values:
+          None: 0
+          Restart From First Job Step: 1
+          Restart From Failed Job Step: 2
+          Use Restart Criteria: 3
+        default: None
+        required: cond
+      deleteOverrideJcl:
+        label: Delete Override JCL
+        section: 3b. JCL override library (optional)
+        kind: boolean
+      exitCodeProcessing:
+        section: 3d. Exit-code processing (how success/failure is decided)
+        kind: enum
+        values:
+          Success Exitcode Range: 1
+          Failure Exitcode Range: 2
+          Success Output Contains: 3
+          Failure Output Contains: 4
+          Step Conditions: 5
+        default: Success Exitcode Range
+      jclLocation:
+        label: JCL Location
+        section: 3a. JCL source (required)
+        kind: text
+        required: true
+      jobclassNew:
+        label: New Jobclass
+        section: 3c. JCL submission overrides (optional)
+        kind: text
+      jobnameNew:
+        label: New Jobname
+        section: 3c. JCL submission overrides (optional)
+        kind: text
+      msgclassNew:
+        label: New Msgclass
+        section: 3c. JCL submission overrides (optional)
+        kind: text
+      outputFailureOnly:
+        label: Failure Only
+        section: 3e. Automatic output retrieval and auto-restart (optional)
+        kind: boolean
+      outputReturnFile:
+        label: Automatic Output File
+        section: 3e. Automatic output retrieval and auto-restart (optional)
+        kind: text
+        required: cond
+      outputReturnNline:
+        label: Number of Lines
+        section: 3e. Automatic output retrieval and auto-restart (optional)
+        kind: integer
+      outputReturnSline:
+        label: Start Line
+        section: 3e. Automatic output retrieval and auto-restart (optional)
+        kind: integer
+        default: '1'
+      outputReturnText:
+        label: Scan Text
+        section: 3e. Automatic output retrieval and auto-restart (optional)
+        kind: text
+      outputReturnType:
+        label: Automatic Output Retrieval
+        section: 3e. Automatic output retrieval and auto-restart (optional)
+        kind: enum
+        values:
+          NONE: 1
+          JOBLOG: 5
+          FILE: 4
+        ui_labels:
+          -- None --: NONE
+          Joblog: JOBLOG
+          File: FILE
+        default: NONE
+      overrideJclDelInstCount:
+        label: Override Instance Count for Deletion
+        section: 3b. JCL override library (optional)
+        kind: text
+        default: '"1"'
+        required: cond
+      overrideJclLocation:
+        label: JCL Override Location
+        section: 3b. JCL override library (optional)
+        kind: text
+        required: cond
+      parameters:
+        label: Parameters
+        section: 3c. JCL submission overrides (optional)
+        kind: list
+      proclibName:
+        label: Procedure Library
+        section: 3c. JCL submission overrides (optional)
+        kind: text
+      scheduleId:
+        label: Schedule Id
+        section: 3c. JCL submission overrides (optional)
+        kind: text
+      systemOrSysaffParameter:
+        label: SYSTEM or SYSAFF Override Parameter
+        section: 3c. JCL submission overrides (optional)
+        kind: text
+      useOverrideLib:
+        label: Use JCL Override Library
+        section: 3b. JCL override library (optional)
+        kind: boolean
+      waitForOutput:
+        label: Wait For Output
+        section: 3e. Automatic output retrieval and auto-restart (optional)
+        kind: boolean
+  taskZosMonitor:
+    include:
+    - common
+    - agent_task
+    fields:
+      conditionCode:
+        label: Condition Code(s)
+        section: Step 3 - z/OS Monitor-specific fields
+        kind: text
+        required: cond
+      expirationAction:
+        label: Expiration Action
+        section: Time scope and outcome
+        kind: enum
+        values:
+          Failed: 1
+          Finished: 2
+        default: Failed
+      jobEvent:
+        label: Job Event
+        section: Step 3 - z/OS Monitor-specific fields
+        kind: enum
+        values:
+          Job Start: 1
+          Job End: 2
+          Job Abend: 3
+          Step End: 4
+          Step Abend: 5
+        default: Job End
+        required: true
+      jobName:
+        label: Job Name
+        section: Step 3 - z/OS Monitor-specific fields
+        kind: text
+        required: true
+      relativeTimeFrom:
+        label: Time Scope From
+        section: Time scope and outcome
+        kind: text
+        required: cond
+      relativeTimeTo:
+        label: Time Scope To
+        section: Time scope and outcome
+        kind: text
+      stepName:
+        label: Step Name
+        section: Step 3 - z/OS Monitor-specific fields
+        kind: text
+        required: cond
+      timeScope:
+        label: Time Scope
+        section: Time scope and outcome
+        kind: enum
+        values:
+          -- None --: 0
+          Relative: 1
+        default: -- None --
+        required: true
+      useExitCode:
+        label: Use Exit Code On Failed
+        section: Time scope and outcome
+        kind: boolean
+      userId:
+        label: User Id
+        section: Step 3 - z/OS Monitor-specific fields
+        kind: text
+rules:
+  exclusive:
+  - - broadcastCluster
+    - agent
+  - - broadcastCluster
+    - agentCluster
+  - - waitForOutput
+    - outputFailureOnly
+  one_of:
+    agent_target:
+    - agent
+    - agentVar
+    - agentCluster
+    - agentClusterVar
+    - broadcastCluster
+    - broadcastClusterVar
+  var_pairs_never_both: true
+  never_send:
+  - '*VarCheck'
+  - use*Var
+  read_only:
+  - version
+  - exportReleaseLevel
+  - exportTable
+  - createdBy
+  - created
+  - updatedBy
+  - updated
+  - changeHistory
+  - minRunTime
+  - minRunTimeDisplay
+  - maxRunTime
+  - maxRunTimeDisplay
+  - avgRunTime
+  - avgRunTimeDisplay
+  - lastRunTime
+  - lastRunTimeDisplay
+  - runCount
+  - runTime
+  - firstRun
+  - lastRun
+not_in_registry:
+  distributed_agent_task:
+  - appendStderr
+  - appendStdout
+  - appendTaskVariables
+  - profileFile
+  - scriptVar
+  - stderrFile
+  - stdoutFile
+  taskSap:
+  - type
+  - variantName
+  - useTemporaryVariant
+  - temporaryVariant
+  - printParameters
+  - technicalName
+  - option
+  - sign
+  - low
+  - high
+  - numberOfCopies
+  - outputDevice
+  - format
+  - printTime
+  - pageArea
+  - pageFrom
+  - pageTo
+  - maxSpoolWidth
+  - textOnly
+  - noShade
+  - noFrame
+  - structureInformation
+  - deleteAfterPrinting
+  - spoolRetention
+  - newSpoolRequest
+  - printPriority
+  - storageMode
+  - sapCoverSheet
+  - osCoverSheet
+  - selectionCoverSheet
+  - receivers
+  - department
+  - name
+  - authorization
+  - parameters
+  - logOutput
+  - logErrors
+  - waitForTermination
+  - traceLevel
+  - operatingSystem
+  taskMonitor:
+  - monitorBusinessServiceCriteria
+  - monitorBusinessServices
+  taskWindows:
+  - profileFormat
+  taskZos:
+  - useJclSaveLib

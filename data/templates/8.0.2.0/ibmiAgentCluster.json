@@ -1,0 +1,14 @@
+{
+  "_derived": false,
+  "_documented": 0,
+  "_instances": 0,
+  "_source": "controller create defaults, measured on a live controller (an object created with a name only, read back, deleted)",
+  "agentLimitAmount": 10,
+  "agentLimitType": "Unlimited",
+  "distribution": "Any",
+  "ignoreInactiveAgents": false,
+  "ignoreSuspendedAgents": false,
+  "limitAmount": 5,
+  "limitType": "Unlimited",
+  "strictBsrvcMembership": false
+}

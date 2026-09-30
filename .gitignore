@@ -1,0 +1,25 @@
+.venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+dist/
+build/
+*.egg-info/
+.env
+workspace/
+*.zip
+.DS_Store
+
+# Exports from a live controller are real production data: never in the repo
+# (CLAUDE.md). Anchored to the root, so examples/*.uac.yaml stay tracked.
+/*.uac.yaml
+/*.yarb
+
+# mkdocs build output
+site/
+
+# apply --backup files and other copies of controller data
+*.backup
+command.backup

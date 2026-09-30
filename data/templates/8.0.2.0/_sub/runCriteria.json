@@ -1,0 +1,37 @@
+{
+  "_derived": true,
+  "_min_support": 0.6,
+  "businessDay": false,
+  "complex": false,
+  "complexAdjective": "Every",
+  "complexAdjustment": "None",
+  "complexAdjustmentAmount": 1,
+  "complexAdjustmentType": "Day",
+  "complexNouns": [
+    {
+      "value": "Day"
+    }
+  ],
+  "complexNthAmount": 5,
+  "complexQualifiers": [
+    {
+      "value": "Year"
+    }
+  ],
+  "customDay": false,
+  "evaluateAt": "Trigger Time",
+  "holiday": false,
+  "holidayAdjustment": "None",
+  "holidayAdjustmentAmount": 1,
+  "holidayAdjustmentType": "Day",
+  "specificDay": false,
+  "specificDayFri": false,
+  "specificDayMon": false,
+  "specificDaySat": false,
+  "specificDaySun": false,
+  "specificDayThu": false,
+  "specificDayTue": false,
+  "specificDayWed": false,
+  "type": "Run Criteria",
+  "variableOp": "="
+}

@@ -1,0 +1,275 @@
+# Named field groups: the clusters of a task or trigger that people move as one.
+#
+# A UAC task is ~100 shared fields plus its own body, and nobody edits them one
+# at a time. They edit *a thing*: the SLA, the retry policy, where it runs, what
+# it notifies. This file names those things, so a group can be shown on its own
+# (`show X --group sla`) and copied from one object to another as a unit.
+#
+# Three rules the corpus forced, each with the number that forced it:
+#
+# 1. **A group is defined over the fields that are LIVE, not the fields that are
+#    present.** 1,996 of 4,837 corpus tasks carry a value in the SLA family, but
+#    only 210 have one that does anything: the other 1,786 are `lsTime: 00:00`
+#    residue left behind when someone unticked the box. Copying an SLA group
+#    means copying what `rules/guards.yaml` would show, or 90% of every copy is
+#    dead weight.
+#
+# 2. **Not every cluster is copyable, and the file says which.** `copy: true`
+#    means the block is a *policy* -- it says the same thing on another task.
+#    `copy: false` means it is this object's identity: a trigger's schedule, a
+#    task's `variables`, the `tasks:` it launches. Measured over the corpus as
+#    the share of objects whose block is byte-identical to at least one other
+#    object's: `output` 98.8%, `resources` 97.3%, `retry` 85.5%, `sla` 81.4% --
+#    against `schedule_time` 9.4%, `launch` 16.1%, `set_variables` 34.6%.
+#    The split is not a taste call; it is bimodal in the data.
+#
+# 3. **Groups are disjoint, and a parent group only `includes` children.** A
+#    field in two groups makes "copy the group" ambiguous the first time the two
+#    disagree. `sla` is late start + late finish + early finish because that is
+#    how it is asked for; each third is also addressable on its own.
+#
+# `name` and `type` are **not** a group. They are what a group is attached to --
+# the object's identity, stated once at the top level below, never copied and
+# never part of anything that is.
+#
+# **A name that means the same thing means it in both kinds.** `date_restriction`
+# and `start_state` exist for tasks and for triggers: the fields differ, because
+# UAC spells the two sides differently, but the question does not, and someone
+# who has learned the task group should not have to learn a second word for the
+# trigger one. Groups are resolved per kind, exactly as type aliases are, so the
+# repeated name is never ambiguous.
+#
+# `fields` are UAC's own names, exactly as the bundle format keeps them -- a
+# group is a lens on the object, never a rename. Dotted paths address inside
+# `actions`. Fields absent from a type are simply not part of that type's group.
+#
+# Counts below are over the 5,286 distinct corpus objects (4,837 tasks incl.
+# workflows, 386 triggers), after simplification and after guards.
+
+#: What every object is, in both kinds. Not a group: no lens shows it on its own
+#: and no copy may carry it, since a copy of the identity is the same object.
+identity: [name, type]
+
+task:
+  catalog:
+    doc: Where it is filed and how loudly it logs.
+    copy: true          # 1,855 objects, 659 blocks, 72.0% shared
+    fields: [opswiseGroups, notes, customField1, customField2, customChoiceField1,
+             logLevel, timeZonePref]
+
+  execution:
+    doc: >
+      Where the task runs and as whom -- the agent, cluster or broadcast cluster,
+      and the credential it authenticates with. One group: a task moved to another
+      agent is nearly always moved with the credential that works there, and the
+      two halves are wrong apart more often than they are useful apart.
+    #
+    # **Not named `agent`, because half the type system has no agent.** 14 of the
+    # 27 task types in the corpus carry no agent field at all -- 1,501 objects,
+    # 31% of tasks, Workflow and Sleep and Sql and Web Service among them -- and
+    # 165 of those still state a credential. `agent: {credentials: X}` on a Web
+    # Service task names a thing the type does not have. `execution` covers both
+    # halves and is the word UAC itself uses (`executionUser`, the UI's Execution
+    # tab), so it stays true whether or not there is an agent to name.
+    copy: true          # 3,456 objects, 303 blocks, 96.2% shared
+    fields: [agent, agentVar, agentCluster, agentClusterVar,
+             broadcastCluster, broadcastClusterVar,
+             credentials, credentialsVar]
+
+  sla:
+    doc: >
+      Late start, late finish and early finish -- the whole service-level block,
+      the one people ask to copy by name. 210 corpus tasks have a live one and
+      they take only 66 distinct shapes.
+    copy: true          # 210 objects, 66 blocks, 81.4% shared
+    includes: [late_start, late_finish, early_finish]
+    fields: [userEstimatedDuration, cpDuration, cpDurationUnit]
+
+  late_start:
+    doc: Late if the task has not started in time. 87 live in the corpus.
+    copy: true          # 87 objects, 23 blocks, 87.4% shared
+    fields: [lsEnabled, lsType, lsTime, lsDuration, lsDayConstraint, lsNthAmount]
+
+  late_finish:
+    doc: Late if the task has not finished in time. 181 live.
+    copy: true          # 181 objects, 45 blocks, 87.8% shared
+    fields: [lfEnabled, lfType, lfTime, lfDuration, lfDayConstraint, lfNthAmount,
+             lfOffsetType, lfOffsetPercentage, lfOffsetDuration, lfOffsetDurationUnit]
+
+  early_finish:
+    doc: Early if the task finishes sooner than it should have. 35 live.
+    copy: true          # 35 objects, 7 blocks, 88.6% shared
+    fields: [efEnabled, efType, efTime, efDuration, efDayConstraint, efNthAmount,
+             efOffsetType, efOffsetPercentage, efOffsetDuration, efOffsetDurationUnit]
+
+  retry:
+    doc: How often and how far apart a failure is retried, and on which exit codes.
+    copy: true          # 166 objects, 43 blocks, 85.5% shared
+    fields: [retryMaximum, retryInterval, retryIndefinitely, retrySuppressFailure,
+             retryExitCodes]
+
+  output:
+    doc: Automatic output retrieval -- what of stdout/stderr comes back, and how much.
+    copy: true          # 1,897 objects, 69 blocks, 98.8% shared
+    fields: [waitForOutput, outputType, outputReturnType, outputReturnFile,
+             outputReturnNline, outputReturnSline, outputReturnText, outputFailureOnly]
+
+  result:
+    doc: What counts as success -- exit codes, or text found in the output.
+    copy: true          # 1,565 objects, 68 blocks, 97.0% shared
+    fields: [exitCodeProcessing, exitCodes, exitCodeText, exitCodeOutput, useExitCode]
+
+  resources:
+    doc: Virtual resources, priority and mutual exclusion -- how it queues.
+    copy: true          # 2,185 objects, 96 blocks, 97.3% shared
+    fields: [virtualResources, holdResources, resPriority, resPriorityVar,
+             exclusiveTasks, exclusiveWithSelf, overrideInstanceWait]
+
+  date_restriction:
+    doc: >
+      Which dates this may run on -- UAC's execution restriction, as a period or
+      an explicit date list. Same name as the trigger group of the same purpose:
+      one asks "may this run today", the other "does this fire today".
+    copy: true          # 33 objects, 11 blocks, 78.8% shared
+    fields: [executionRestriction, restrictionPeriod,
+             restrictionPeriodBeforeDate, restrictionPeriodBeforeTime,
+             restrictionPeriodAfterDate, restrictionPeriodAfterTime,
+             restrictionPeriodDateList]
+
+  start_state:
+    doc: >
+      What state the instance starts in -- held, simulated, name resolved at
+      launch. Paired by name with the trigger group that decides the same thing
+      for what a trigger launches.
+    copy: true          # 304 objects, 9 blocks, 99.0% shared
+    fields: [startHeld, startHeldReason, simulation, resolveNameImmediately]
+
+  member_timing:
+    doc: >
+      Wait and delay -- meaningful only where the task sits inside a workflow, so
+      this is the one group that belongs to the membership, not the task.
+    copy: true          # 194 objects, 49 blocks, 85.1% shared
+    fields: [twWaitType, twWaitAmount, twWaitDuration, twWaitTime, twWaitDayConstraint,
+             twDelayType, twDelayAmount, twDelayDuration, twWorkflowOnly]
+
+  variables:
+    doc: This task's own variables. Its values, not a policy.
+    copy: false         # 566 objects, 378 blocks, only 47.0% shared
+    fields: [variables, enforceVariables, lockVariables]
+
+  notifications:
+    doc: Email and SNMP notifications on status.
+    copy: true          # 143 objects, 85 blocks, 55.2% shared
+    fields: [actions.emailNotifications, actions.snmpNotifications]
+
+  abort_actions:
+    doc: What to abort, and on which status.
+    copy: true          # 42 objects, 23 blocks, 64.3% shared
+    fields: [actions.abortActions]
+
+  system_operations:
+    doc: Launch/cancel/hold another task on status.
+    copy: false         # 302 objects, 189 blocks, 46.0% shared -- names other tasks
+    fields: [actions.systemOperations]
+
+  set_variables:
+    doc: Variables written on status. Almost always specific to the task.
+    copy: false         # 609 objects, 455 blocks, 34.6% shared
+    fields: [actions.setVariableActions]
+
+trigger:
+  catalog:
+    doc: Where it is filed.
+    copy: true          # 65 objects, 38 blocks, 58.5% shared
+    fields: [opswiseGroups, description, notes, customField1, customField2]
+
+  launch:
+    doc: >
+      What it launches and as whom. `tasks` (and `taskMonitor` on the six event
+      types) is the trigger's identity -- 386 triggers, 345 distinct blocks.
+    copy: false         # 386 objects, 345 blocks, 16.1% shared
+    fields: [tasks, taskMonitor, executionUser, timeZone, forecast]
+
+  enablement:
+    doc: Whether it is enabled, and the daily window it is enabled within.
+    copy: true          # 241 objects, 23 blocks, 94.6% shared
+    fields: [enabled, enabledStart, enabledEnd]
+
+  date_restriction:
+    doc: >
+      Which days this fires on -- 12 fields, three modes, and the calendar it
+      resolves business days against. 242 triggers carry one, in 25 shapes. Named
+      for the task group of the same purpose; the fields differ because UAC spells
+      the two restrictions differently, the question they answer does not.
+    copy: true          # 242 objects, 25 blocks, 93.0% shared
+    fields: [restriction, restrictionSimple, restrictionComplex, restrictionMode,
+             restrictionAdjective, restrictionNoun, restrictionNouns,
+             restrictionQualifier, restrictionQualifiers, restrictionNthAmount,
+             restrictedTimes, calendar]
+
+  holiday_handling:
+    doc: >
+      What to do when the computed date lands on a holiday or non-business day.
+      Reads the calendar named in `date_restriction`; kept apart because it is the
+      exception policy, not the rule.
+    copy: true          # 13 objects, 6 blocks, 76.9% shared
+    fields: [situation, action]
+
+  skip:
+    doc: Skip conditions -- skip while active, skip a count, skip these dates.
+    copy: true          # 17 objects, 6 blocks, 88.2% shared
+    fields: [skipCondition, skipActive, skipCount, skipDateList, skipRestriction,
+             skipAfterDate, skipAfterTime, skipBeforeDate, skipBeforeTime]
+
+  retention:
+    doc: How long instances launched by this trigger are kept.
+    copy: true          # 5 objects, 1 block
+    fields: [retentionDuration, retentionDurationUnit, retentionDurationPurge,
+             rdExcludeBackup]
+
+  start_state:
+    doc: >
+      What state the launched instances start in -- here, simulated rather than
+      real. Named for the task group of the same purpose, which carries the task's
+      own `simulation` flag beside held and name-resolution.
+    copy: true          # 10 objects, 4 blocks, 90.0% shared
+    fields: [simulateTasks, simulationOption]
+
+  variables:
+    doc: Variables the trigger passes to what it launches.
+    copy: false         # 45 objects, 35 blocks, 33.3% shared
+    fields: [variables, enforceVariables, lockVariables]
+
+  schedule_time:
+    doc: >
+      When a Time trigger fires -- day style, weekday flags, the date arithmetic
+      and the times. This is the trigger, so it is never copied: 202 triggers,
+      191 distinct blocks, 9.4% shared.
+    copy: false
+    fields: [timeStyle, time, timeInterval, timeIntervalUnits, startingAt,
+             startTimeEnable, intervalStartingDate, adjustInterval, adjustmentAmount,
+             adjustmentType, dayStyle, dayInterval, daily, businessDays, custom,
+             mon, tue, wed, thu, fri, sat, sun, simpleDateType,
+             dateNoun, dateNouns, dateAdjective, dateQualifier, dateQualifiers,
+             dateAdjustment, nthAmount]
+
+  schedule_cron:
+    doc: When a Cron trigger fires.
+    copy: false         # 6 objects, 6 blocks, 0% shared
+    fields: [minutes, hours, dayOfMonth, month, dayOfWeek, dayLogic]
+
+  schedule_temporary:
+    doc: When a Temporary trigger fires, and whether it survives firing.
+    copy: false
+    fields: [tdate, ttime, keepTrigger]
+
+  schedule_composite:
+    doc: The component triggers, and the window they must all fire within.
+    copy: false
+    fields: [components, timeLimit, timeLimitUnits, queueDepth]
+
+  schedule_application:
+    doc: The application and status an Application Monitor trigger watches.
+    copy: false
+    fields: [application, applType, applNameCondition, applNameValue,
+             monitorType, status]

@@ -1,0 +1,269 @@
+# Fields that mean nothing because the feature owning them is off.
+#
+# UAC never clears a field when its feature is switched off: a task with
+# `lfEnabled: false` still stores lfType, lfTime, lfDuration... In the
+# uac_model corpus that residue is 12,218 of 69,822 simplified fields (17.5%,
+# 7.4 per taskUnix). `yarb export` hides these fields in BOTH styles unless
+# `--show-inactive` is passed.
+#
+# DISPLAY ONLY. Never apply these in simplify(): a minority of objects carry
+# residue that is not constant (22 have `lsType: Duration` with late start
+# off), so dropping it in the core would change the object and break
+# inflate(simplify(x)) == normalize(x). Import is safe because comparison is
+# one-directional: a hidden field is simply not stated.
+#
+# Reading a rule:
+#   when: every listed guard field holds one of the listed values (null = absent)
+#   hide: fields to leave out of the exported file
+#
+# Rules are matched on any type that has the fields -- they belong to a field
+# family, not to a type.
+#
+# `measured:` records the evidence. A rule under `candidates:` comes from the
+# AI 2.0 docs' "applies when" notes (reference/uac-ai-2.0/) and has NOT been
+# measured yet. Promote it to `rules:` only after checking, over the corpus,
+# that with the guard in that state every hidden field is constant or
+# near-constant (residue only, never a live setting) -- and write the count.
+
+rules:
+  # --- measured in uac_model (rules/guards.yaml), 5,286 corpus objects ---
+
+  # Late start / late finish / early finish: one box each.
+  - when: {lsEnabled: [false, null]}
+    hide: [lsType, lsTime, lsDayConstraint, lsDuration, lsNthAmount]
+    measured: uac_model guards.yaml
+  - when: {lfEnabled: [false, null]}
+    hide: [lfType, lfTime, lfDayConstraint, lfDuration, lfNthAmount,
+           lfOffsetType, lfOffsetPercentage, lfOffsetDuration, lfOffsetDurationUnit]
+    measured: uac_model guards.yaml
+  - when: {efEnabled: [false, null]}
+    hide: [efType, efTime, efDayConstraint, efDuration, efNthAmount,
+           efOffsetType, efOffsetPercentage, efOffsetDuration, efOffsetDurationUnit]
+    measured: uac_model guards.yaml
+
+  # Inactive branch of an ENABLED constraint: of the 112 objects with
+  # lfType not Time, all 112 have lfTime at 00:00.
+  - when: {lsEnabled: [true], lsType: [Duration, Average Duration]}
+    hide: [lsTime, lsDayConstraint, lsNthAmount]
+    measured: uac_model guards.yaml
+  - when: {lfEnabled: [true], lfType: [Duration, Average Duration]}
+    hide: [lfTime, lfDayConstraint, lfNthAmount]
+    measured: "112/112"
+  - when: {efEnabled: [true], efType: [Duration, Average Duration]}
+    hide: [efTime, efDayConstraint, efNthAmount]
+    measured: uac_model guards.yaml
+
+  # The other half of the same box: with a Time constraint the duration says
+  # nothing. Measured over the corpus, counting only objects whose constraint
+  # is ON and whose type is Time: lsDuration 65/65, lfDuration 67/67, and
+  # lfDuration 2/2 under Average Duration -- every one of them 00:00:00:00,
+  # never a live setting. No corpus object enables an early finish, so `ef`
+  # follows its family.
+  # `null` because Time is the type's own default and an object that takes it
+  # stores no `*Type` at all -- which is the common case, and the one the
+  # residue shows up in.
+  - when: {lsEnabled: [true], lsType: [Time, null]}
+    hide: [lsDuration]
+    measured: "65/65"
+  - when: {lfEnabled: [true], lfType: [Time, Average Duration, null]}
+    hide: [lfDuration]
+    measured: "67/67 Time, 2/2 Average Duration"
+  - when: {efEnabled: [true], efType: [Time, Average Duration, null]}
+    hide: [efDuration]
+    measured: "0 in this corpus; same field family as ls/lf"
+
+  # Automatic output retrieval. The guard is outputReturnType, NOT
+  # waitForOutput: with waiting off, outputReturnNline still varies 310 times.
+  # With retrieval at NONE these are constant across 3,793 objects.
+  - when: {outputReturnType: [NONE, null]}
+    hide: [outputReturnFile, outputReturnNline, outputReturnSline, outputReturnText,
+           outputFailureOnly]
+    measured: "3793/3793"
+  - when: {outputReturnType: [STDOUT, STDERR, OUTERR]}
+    hide: [outputReturnFile]
+    measured: uac_model guards.yaml
+
+  # Retries: with no retries the other four never fire.
+  - when: {retryMaximum: [0, "0", null]}
+    hide: [retryInterval, retryIndefinitely, retrySuppressFailure, retryExitCodes]
+    measured: uac_model guards.yaml (16 objects have retryIndefinitely residue)
+
+  # Wait / delay.
+  - when: {twWaitType: [None, null]}
+    hide: [twWaitAmount, twWaitDuration, twWaitTime, twWaitDayConstraint]
+    measured: uac_model guards.yaml
+  - when: {twDelayType: [None, null]}
+    hide: [twDelayAmount, twDelayDuration]
+    measured: uac_model guards.yaml
+
+  # Execution restriction and the period it would apply over.
+  - when: {executionRestriction: [None, null]}
+    hide: [restrictionPeriod, restrictionPeriodBeforeDate, restrictionPeriodBeforeTime,
+           restrictionPeriodAfterDate, restrictionPeriodAfterTime, restrictionPeriodDateList]
+    measured: uac_model guards.yaml
+  - when: {restrictionPeriod: [None, null]}
+    hide: [restrictionPeriodBeforeDate, restrictionPeriodBeforeTime,
+           restrictionPeriodAfterDate, restrictionPeriodAfterTime, restrictionPeriodDateList]
+    measured: uac_model guards.yaml
+
+  # Odds and ends, each 100% constant when the guard is off.
+  - when: {enforceVariables: [false, null]}
+    hide: [lockVariables]
+    measured: "100%"
+  - when: {startHeld: [false, null]}
+    hide: [startHeldReason]
+    measured: "100%"
+  - when: {cpDuration: [null, "", 0, "0"]}
+    hide: [cpDurationUnit]
+    measured: "100%"
+  - when: {exitCodeProcessing: [Success Exitcode Range, null]}
+    hide: [exitCodeText, exitCodeOutput]
+    measured: "100%"
+  - when: {exitCodeProcessing: [Success Output Contains, Failure Output Contains]}
+    hide: [exitCodes]
+    measured: "100%"
+
+  # --- trigger calendar: day style, restrictions, restricted times ---
+  # `dayStyle` selects which date fields a Time trigger reads: Simple reads
+  # simpleDateType, Complex reads the date* phrase, Every reads dayInterval
+  # from intervalStartingDate. UAC keeps the others. Measured over the 202
+  # triggerTime objects: under Simple, date* is Every/Day/Year in 176/179
+  # (3 keep Sunday/Month from an old Complex setting), dayInterval is 2 in
+  # 178/179, and intervalStartingDate is a stamped date in 169/179 (no two
+  # objects agree, and nothing reads it). Under Complex, simpleDateType is
+  # Daily 21/21 and dayInterval 2 21/21. Every: 2 objects, all residue.
+  - when: {dayStyle: [Simple, null]}
+    hide: [dateAdjective, dateNoun, dateNouns, dateQualifier, dateQualifiers,
+           intervalStartingDate, dayInterval]
+    measured: "176/179 date*, 178/179 dayInterval; intervalStartingDate stamped"
+  - when: {dayStyle: [Complex]}
+    hide: [simpleDateType, intervalStartingDate, dayInterval]
+    measured: "21/21"
+  - when: {dayStyle: [Every]}
+    hide: [dateAdjective, dateNoun, dateNouns, dateQualifier, dateQualifiers,
+           simpleDateType]
+    measured: "2/2"
+  # Restriction off: 310 triggers over 10 trigger types. Noun Day 294/295,
+  # qualifier Year 295/296, adjective Every 310/310, mode Or 309/310.
+  - when: {restriction: [false, null]}
+    hide: [restrictionAdjective, restrictionNoun, restrictionNouns,
+           restrictionQualifier, restrictionQualifiers, restrictionNthAmount,
+           restrictionMode, restrictionSimple, restrictionComplex]
+    measured: "294/295 .. 310/310"
+  # Restricted times off: enabledStart 00:00 285/294, enabledEnd 286/294.
+  - when: {restrictedTimes: [false, null]}
+    hide: [enabledStart, enabledEnd]
+    measured: "285/294"
+
+  # --- attachments an email notification is not sending ---
+  # Measured over the 5,286 corpus objects, counting only rows whose flag is
+  # off: fileStartLine 129, fileNumLines 128, stdoutStartLine 107,
+  # stderrStartLine 106, stdoutNumLines 102, stderrNumLines 100,
+  # joblogStartLine 33, joblogNumLines 31 -- every one of them a line count for
+  # an attachment the row does not attach.
+  - path: actions.emailNotifications
+    when: {attachFile: [false, null]}
+    hide: [fileName, fileNumLines, fileStartLine, fileScanText]
+    measured: "129 rows"
+  - path: actions.emailNotifications
+    when: {attachStdOut: [false, null]}
+    hide: [stdoutNumLines, stdoutStartLine, stdoutScanText]
+    measured: "107 rows"
+  - path: actions.emailNotifications
+    when: {attachStdError: [false, null]}
+    hide: [stderrNumLines, stderrStartLine, stderrScanText]
+    measured: "106 rows"
+  - path: actions.emailNotifications
+    when: {attachJobLog: [false, null]}
+    hide: [joblogNumLines, joblogStartLine, joblogScanText]
+    measured: "33 rows"
+
+  # --- the exit code a create fills in anyway ---
+  # NOT an inactive field: `exitCodes: '0'` is live, and 3,342 of the 3,367
+  # corpus objects that state it say exactly that. It is left out because
+  # `rules/oncreate.yaml` fills the same value on create, and comparison is
+  # one-directional, so a file that does not state it still agrees.
+  #
+  # Guarded by the mode oncreate itself is guarded by: under `Failure Exitcode
+  # Range` nothing would fill it, and leaving it out would lose the codes.
+  - when:
+      exitCodes: ['0']
+      exitCodeProcessing: [Success Exitcode Range, null]
+    hide: [exitCodes]
+    measured: "3,342 of 3,367"
+
+candidates:
+  # --- from the AI 2.0 docs; measure before promoting ---
+
+  # create-distributed-agent-task: "send only the fields that belong to the
+  # choice you made and omit the alternatives".
+  - when: {commandOrScript: [Command, null]}
+    hide: [script, scriptVar]
+    source: skills/create-distributed-agent-task "Command vs Script"
+  - when: {commandOrScript: [Script]}
+    hide: [command, runAsSudo]
+    source: skills/create-distributed-agent-task; agents/create-unix-task (runAsSudo "forced false for Script mode")
+
+  # Failure Exitcode Range reads exitCodes, not the scan fields.
+  - when: {exitCodeProcessing: [Failure Exitcode Range]}
+    hide: [exitCodeText, exitCodeOutput]
+    source: skills/create-distributed-agent-task "Exit-Code Processing"
+  # outputType is only read by the output-contains modes (and exitCodeOutput
+  # only when outputType is FILE).
+  - when: {exitCodeProcessing: [Success Exitcode Range, Failure Exitcode Range, null]}
+    hide: [outputType]
+    source: skills/create-distributed-agent-task "Exit-Code Processing"
+  - when: {outputType: [STDOUT, STDERR]}
+    hide: [exitCodeOutput]
+    source: skills/create-distributed-agent-task
+
+  # Time-of-day wait fields are read only for Time / Relative Time.
+  - when: {twWaitType: [Duration]}
+    hide: [twWaitTime, twWaitDayConstraint, twWaitAmount]
+    source: skills/create-task "Wait / Delay Options"
+  - when: {twWaitType: [Seconds]}
+    hide: [twWaitTime, twWaitDayConstraint, twWaitDuration]
+    source: skills/create-task "Wait / Delay Options"
+  - when: {twWaitType: [Time, Relative Time]}
+    hide: [twWaitDuration, twWaitAmount]
+    source: skills/create-task "Wait / Delay Options"
+  - when: {twDelayType: [Duration]}
+    hide: [twDelayAmount]
+    source: skills/create-task
+  - when: {twDelayType: [Seconds]}
+    hide: [twDelayDuration]
+    source: skills/create-task
+
+  # Offset fields are read only with Average Duration.
+  - when: {lfEnabled: [true], lfType: [Time, Duration]}
+    hide: [lfOffsetType, lfOffsetPercentage, lfOffsetDuration, lfOffsetDurationUnit]
+    source: skills/create-task "Late Finish"
+  - when: {efEnabled: [true], efType: [Time, Duration]}
+    hide: [efOffsetType, efOffsetPercentage, efOffsetDuration, efOffsetDurationUnit]
+    source: skills/create-task "Early Finish"
+
+  # Nth amount only with the Nth Day constraint.
+  - when: {lfDayConstraint: [None, Same Day, Next Day, Next Business Day,
+                             Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, null]}
+    hide: [lfNthAmount]
+    source: skills/create-task "lfNthAmount required when Nth Day"
+  # (same shape for ls/ef NthAmount)
+
+  # --- custom days: `ctype` selects which fields are read. From uac_model's
+  # calendars.py, measured on ITS controller (79 custom days), not on this
+  # corpus, which has none: all 7 Single Date and all 23 List of Dates carry
+  # month: Jan + relfreq: 1st; all 17 Absolute Repeating Date carry
+  # dayofweek: Sun. Measure on a corpus with custom days before promoting.
+  - when: {ctype: [Single Date]}
+    hide: [dateList, month, day, relfreq, dayofweek, nthAmount]
+    source: uac_model calendars.py READS
+  - when: {ctype: [List of Dates]}
+    hide: [date, month, day, relfreq, dayofweek, nthAmount]
+    source: uac_model calendars.py READS
+  - when: {ctype: [Absolute Repeating Date]}
+    hide: [date, dateList, relfreq, dayofweek, nthAmount]
+    source: uac_model calendars.py READS
+  - when: {ctype: [Relative Repeating Date]}
+    hide: [date, dateList, day]
+    source: uac_model calendars.py READS
+

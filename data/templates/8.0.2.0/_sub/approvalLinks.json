@@ -1,0 +1,6 @@
+{
+  "_derived": true,
+  "_min_support": 0.6,
+  "name": "More Information",
+  "value": "http://companyname.someexpenseplatform.com/${_varJsonPath('ops_trigger_uc2_msteams_msg_expense_request_payload', '$.id', '')}"
+}

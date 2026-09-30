@@ -1,0 +1,7 @@
+{
+  "_derived": false,
+  "_documented": 0,
+  "_instances": 0,
+  "_source": "controller create defaults, measured on a live controller (an object created with a name only, read back, deleted)",
+  "ctrlNavigationVisibility": false
+}

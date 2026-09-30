@@ -1,0 +1,22 @@
+# Closed value lists for kinds the AI 2.0 docs do not cover (they document
+# tasks only). From uac_model (calendars.py, scripts.py), measured on its
+# controller: 79 custom days, 21 calendars, 386 scripts. The corpus here has
+# none of these kinds, so these rungs have no corpus false-positive count.
+#
+# Two weekday vocabularies, both UAC's and never mixed: a calendar says
+# `Monday`, a custom day says `Mon`. Writing the wrong one is a value UAC
+# silently does not match.
+
+long_weekdays: &long [Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday]
+short_weekdays: &short [Sun, Mon, Tue, Wed, Thu, Fri, Sat]
+
+fields:
+  script.scriptType: [Data, Script, UDM Script, SAP Definition, Web Service Payload]
+  calendar.firstDayOfWeek: *long
+  calendar.businessDays: *long            # each day of the list
+  customDay.dayofweek: *short
+  customDay.observedRules.actualDayOfWeek: *short
+  customDay.observedRules.observedDayOfWeek: *short
+  customDay.ctype: [Single Date, List of Dates, Absolute Repeating Date, Relative Repeating Date]
+  customDay.category: [Day, Business Day, Holiday, Period]
+  customDay.adjustment: [None, Less, Plus]

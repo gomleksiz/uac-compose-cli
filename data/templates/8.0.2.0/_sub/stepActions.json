@@ -1,0 +1,20 @@
+{
+  "_derived": true,
+  "_min_support": 0.6,
+  "actionCriteriaTask": "SBZOS1A",
+  "execCommand": "Cancel",
+  "execCriteria": "Oldest Active Instance",
+  "execLookupOption": "Instance Name",
+  "execWorkflowNameCond": "Equals",
+  "notificationOption": "Operation Failure",
+  "operation": "Launch Task",
+  "overrideTriggerDateTime": false,
+  "overrideTriggerTime": "00:00",
+  "stepCodes": "0",
+  "stepName": "STEP4",
+  "task": "Sleep 10",
+  "taskLimitType": "Unlimited",
+  "variablesUnresolved": false,
+  "vertexId": "Any",
+  "vertexSelection": false
+}

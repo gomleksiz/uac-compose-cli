@@ -1,0 +1,47 @@
+# The filters `uac <group> list-advanced` takes, per bundle section: what
+# `uac-compose find` starts from and what a change-file step's `from:` sends.
+# From `uac <group> list-advanced --help`; the notes were measured live.
+#
+#   field: the object field the filter tests. `FakeTransport` filters on it
+#          (a wildcard), and `find` shows it. No field: the controller alone
+#          knows (the tasks of a workflow, a business service's members).
+#   note:  what the controller takes as a value.
+#
+# A section not named here has no list-advanced filters: `find` lists all of it.
+
+tasks:
+  taskname: {field: name, note: "a name; * wildcards work"}
+  agentname: {field: agent, note: "an exact agent name; a wildcard is refused"}
+  type: {field: type, note: "the UI name: Unix, Linux/Unix, Windows, Workflow, Timer..."}
+  business_services: {note: "a business service name"}
+  workflowname: {note: "the tasks in this workflow"}
+  workflowid: {note: "the tasks in the workflow with this sysId"}
+  updated_time: {note: "with updated_time_type: e.g. updated_time=-1d"}
+  updated_time_type: {note: "Offset, Since, Before..."}
+  templateid: {note: "a Universal Template sysId"}
+  templatename: {note: "a Universal Template name: its Universal Tasks"}
+
+triggers:
+  triggername: {field: name, note: "a name; * wildcards work"}
+  type: {field: type, note: "the UI name: Time, Cron, File Monitor, Task Monitor..."}
+  business_services: {note: "a business service name"}
+  enabled: {field: enabled, note: "true or false"}
+  tasks: {note: "a task name: the triggers that launch it"}
+  description: {field: description}
+
+variables:
+  variablename: {field: name, note: "a name; * wildcards work"}
+  scope: {note: "Global, Local..."}
+  taskname: {note: "the variables of this task"}
+  triggername: {note: "the variables of this trigger"}
+  business_services: {note: "a business service name"}
+
+virtual_resources:
+  resourcename: {field: name, note: "a name; * wildcards work"}
+  type: {note: "Renewable or Depletable"}
+  business_services: {note: "a business service name"}
+
+agent_clusters:
+  agentclustername: {field: name, note: "a name; * wildcards work"}
+  type: {note: "the UI name: Linux/Unix, Windows..."}
+  business_services: {note: "a business service name"}

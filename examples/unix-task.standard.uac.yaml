@@ -1,0 +1,29 @@
+# Standard style (`yarb export --style standard`): UAC's own field names,
+# defaults and inactive fields removed, nothing else changed.
+# The same task as unix-task.yarb; both compile to identical UAC objects.
+# Names are fictional.
+#
+# Not written, because they equal the default: exitCodeProcessing, lsEnabled,
+# twWaitType, logLevel, ...  Not written, because late finish is a Duration:
+# lfTime, lfDayConstraint, lfNthAmount (still stored on the controller;
+# `--show-inactive` would include them).
+version: 1
+style: standard
+
+tasks:
+  Nightly Load:
+    type: taskUnix
+    agentVar: ${agent}
+    credentials: etl-svc
+    command: /opt/etl/load.sh
+    exitCodes: '0'
+    retryMaximum: 3
+    retryInterval: 300
+    lfEnabled: true
+    lfType: Duration
+    lfDuration: 00:02:00:00
+    variables:
+    - name: load_date
+      value: ${_date('yyyy-MM-dd')}
+    - name: region
+      value: eu

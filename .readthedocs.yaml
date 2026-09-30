@@ -1,0 +1,16 @@
+# Read the Docs: builds the site in mkdocs.yml from docs/.
+version: 2
+
+build:
+  os: ubuntu-24.04
+  tools:
+    python: "3.12"
+
+mkdocs:
+  configuration: mkdocs.yml
+
+python:
+  install:
+    - requirements: docs/requirements.txt
+    - method: pip          # the command reference imports uac_compose.cli
+      path: .

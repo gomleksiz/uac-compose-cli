@@ -1,0 +1,18 @@
+{
+  "_derived": true,
+  "_min_support": 0.6,
+  "execCommand": "Cancel",
+  "execCriteria": "Oldest Active Instance",
+  "execLookupOption": "Instance Name",
+  "execWorkflowNameCond": "Equals",
+  "notificationOption": "Operation Failure",
+  "notifyOnEarlyFinish": false,
+  "notifyOnLateFinish": false,
+  "notifyOnLateStart": false,
+  "notifyOnProjectedLate": false,
+  "overrideTriggerDateTime": false,
+  "overrideTriggerTime": "00:00",
+  "taskLimitType": "Unlimited",
+  "variablesUnresolved": false,
+  "vertexSelection": false
+}

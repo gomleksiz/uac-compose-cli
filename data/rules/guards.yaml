@@ -1,0 +1,39 @@
+# Fields the controller will not store while a switch on the TARGET is off.
+#
+# Read at import only, and judged against the object the target already holds
+# -- never against the file, and never in simplify, inflate or display.
+#
+# Why it exists. A file may state `body: Approved` and leave `bodyFilter` out,
+# because `Contains` is the default. If someone has since set `bodyFilter` to
+# `None` on the target, the switch is off there, and UAC discards `body` on
+# the way in. The file is right, the target is right, and yarb used to report
+# the same conflict on every run for ever.
+#
+# The switch belongs to the target: an import does not change it. yarb says
+# once that the value will not be stored, and does not call it a conflict.
+#
+# Measured over the corpus before it was written (CLAUDE.md rule 9):
+# 13 objects declare these filters, 31 of the switches are off, and in every
+# one of those 31 the governed value is empty -- 0 residue. So the controller
+# always clears it.
+#
+# `bodyBeginMarker` and `bodyEndMarker` are deliberately NOT here: 1 corpus
+# object keeps both while `bodyFilter` is `None`, so the controller does not
+# clear them and the rule would be a lie.
+
+guards:
+  - type: taskEmailMonitor
+    when: {bodyFilter: ['None']}
+    dead: [body]
+  - type: taskEmailMonitor
+    when: {subjectFilter: ['None']}
+    dead: [subject]
+  - type: taskEmailMonitor
+    when: {fromFilter: ['None']}
+    dead: [from]
+  - type: taskEmailMonitor
+    when: {toFilter: ['None']}
+    dead: [to]
+  - type: taskEmailMonitor
+    when: {ccFilter: ['None']}
+    dead: [cc]

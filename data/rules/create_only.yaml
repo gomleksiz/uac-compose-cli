@@ -1,0 +1,17 @@
+# Sections every export marks `create_only:`. Import creates a missing object
+# of these and never rewrites an existing one, even with --update: they hold
+# what differs between controllers (secrets, agents, hosts, limits, who may do
+# what), so the target's own copy is the right one.
+#
+# A UAC Bundle export adds the Bundle's own excludeOnExistence to these.
+sections:
+  - business_services
+  - user_groups
+  - agent_clusters
+  - credentials
+  - variables
+  - virtual_resources
+  - database_connections
+  - peoplesoft_connections
+  - sap_connections
+  - email_connections

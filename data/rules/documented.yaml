@@ -1,0 +1,291 @@
+# What the Controller supplies when a field is omitted on create, as stated by
+# Stonebranch's own create-task documentation.
+#
+# This is a different claim from a derived template default, which says only
+# what one corpus happens to hold -- and only one of the two is measured against
+# the objects the round trip has to survive. So a documented default reaches
+# `templates/<ver>/<type>.json` ONLY where the corpus says the field is present
+# on EVERY instance of that type. That is derivation's own rule
+# (`_Accumulator.template`) and it is what keeps `inflate(simplify(x, t), t) ==
+# normalize(x)` exact: the simplified form cannot say "unset", so a default for
+# a sometimes-absent field is resurrected on the objects that never had it.
+# Measured on the case that found it -- giving the five types that lack
+# `exitCodes` a default takes the corpus round trip from 5286/5286 to 5268/5286.
+#
+# A value the gate refuses is still true and still useful: it is prompt
+# knowledge and an `oncreate` candidate. It is simply not a template default,
+# and `bootstrap derive` says which ones it withheld rather than dropping them
+# silently.
+#
+# Values are spelled the way the API takes them. Enums are STRINGS and are
+# written as the value map's *name* ("NONE", "-- System Default --"), never the
+# integer id. A field the registry declares `string` is quoted even when it
+# looks like a number: `outputReturnSline` is stored as "1" on all 920 taskUnix
+# and 179 taskZos objects, and a bare 1 would equal nothing, since the differ
+# compares exactly. `resPriority`, `retryMaximum`, `retryInterval`, the Nth
+# amounts, `endSeverity` and `pollInterval` are genuinely integers.
+#
+# `source:` is mandatory. A default nobody can trace back is a default nobody
+# can re-check when the next build changes it.
+#
+# TASKS ONLY. This build documents no trigger fields at all -- there is no
+# create-trigger skill or agent, and `trigger` appears only as a concept in
+# prompts/base/uc-concepts.md -- so nothing here is scoped to a trigger type,
+# and `common:` reaches only the types whose spec declares the field. Two task
+# types have no agent doc either (`taskUniversal`, `taskWorkflow`); they take
+# the common entries and nothing more.
+#
+# TOP-LEVEL FIELDS ONLY. The overlay writes a type's own template, so a field
+# that lives inside a sub-object has nowhere to go and would be dropped in
+# silence by the declaration filter. The build documents defaults for several:
+# `notifyType` (taskSap.emailNotification), `logicalOperator`
+# (taskApproval.approvalCriteria) and `paramMode` (taskStoredProc.storedProcParams).
+# Defaulting those means a sub-template, which is a separate measured change --
+# `derive_templates` pools sub-object shapes across all types at once, so one
+# wrong default there reaches every type that has the shape. Three more the
+# build documents -- `printTime`, `pageArea` and `profileFormat` -- are not in
+# the 8.0.2.0 spec at all, and `tests/test_documented.py` fails on any of them.
+
+# Every type whose spec declares the field. Scope is by declaration, exactly as
+# `rules/oncreate.yaml` scopes itself, so a release that adds a field to a type
+# needs no edit here.
+common:
+  timeZonePref:
+    value: "-- System Default --"
+    source: skills/create-task/SKILL.md:146
+  resPriority:
+    value: 10
+    scalar: true
+    source: skills/create-task/SKILL.md:149
+    note: >-
+      Absent from all 27 derived templates, because `reference_fields()` pops
+      every field with a `<name>Var` twin and `resPriorityVar` exists. This one
+      is an integer 1-100, not the name of another object -- the twin exists
+      only so a variable may supply the number -- so `scalar: true` says so in
+      the file rather than having the overlay quietly overrule the rule.
+  overrideInstanceWait:
+    value: "No"
+    source: skills/create-task/SKILL.md:154
+  retryMaximum:
+    value: 0
+    source: skills/create-task/SKILL.md:168
+    note: Withheld on this corpus -- 0 of 5,286 objects store it.
+  retryInterval:
+    value: 60
+    source: skills/create-task/SKILL.md:170
+    note: Withheld on this corpus -- 0 of 5,286 objects store it.
+  twWaitType:
+    value: "None"
+    source: skills/create-task/SKILL.md:183
+  twDelayType:
+    value: "None"
+    source: skills/create-task/SKILL.md:188
+  lsType:
+    value: Time
+    source: skills/create-task/SKILL.md:255
+  lsNthAmount:
+    value: 5
+    source: skills/create-task/SKILL.md:258
+  lfType:
+    value: Time
+    source: skills/create-task/SKILL.md:266
+  lfNthAmount:
+    value: 5
+    source: skills/create-task/SKILL.md:269
+  lfOffsetType:
+    value: Percentage
+    source: skills/create-task/SKILL.md:271
+  lfOffsetDurationUnit:
+    value: Minutes
+    source: skills/create-task/SKILL.md:274
+  efType:
+    value: Time
+    source: skills/create-task/SKILL.md:281
+  efNthAmount:
+    value: 5
+    source: skills/create-task/SKILL.md:284
+  efOffsetType:
+    value: Percentage
+    source: skills/create-task/SKILL.md:286
+  efOffsetDurationUnit:
+    value: Minutes
+    source: skills/create-task/SKILL.md:289
+  cpDurationUnit:
+    value: Minutes
+    source: skills/create-task/SKILL.md:305
+  executionRestriction:
+    value: "None"
+    source: skills/create-task/SKILL.md:313
+
+  # The shared skills. Narrower than they look: only the distributed-agent
+  # types declare `commandOrScript`, and only the two database types
+  # `resultProcessing`, so declaration alone scopes them correctly.
+  commandOrScript:
+    value: Command
+    source: skills/create-distributed-agent-task/SKILL.md:51
+  exitCodeProcessing:
+    value: Success Exitcode Range
+    source: skills/create-distributed-agent-task/SKILL.md:164
+  outputReturnType:
+    value: NONE
+    source: skills/create-distributed-agent-task/SKILL.md:263
+    note: >-
+      Disputed on taskPeoplesoft, where all 10 corpus objects hold OUTERR and
+      NONE occurs on none of them -- so it is withheld there and applied
+      everywhere else. SAP and Universal Command document OUTERR outright and
+      say so under `types:` below; PeopleSoft may be the same case undocumented,
+      which is exactly what a human should check against a controller rather
+      than what an overlay should guess.
+  outputReturnSline:
+    value: "1"
+    source: skills/create-distributed-agent-task/SKILL.md:271
+    note: >-
+      Stored as the string "1", never the number. Withheld on taskUnix (920/939)
+      and taskWindows (146/168), where the field is not on every instance.
+  resultProcessing:
+    value: Skip Result Processing
+    source: skills/create-database-task/SKILL.md:60
+
+# Per type. Overrides `common`, because the per-type agent is the closer
+# authority -- SAP and Universal Command deliberately default output retrieval
+# to OUTERR where the shared skill says NONE.
+types:
+  taskFtp:
+    serverType:   {value: UDM,     source: agents/create-ftp-task.md:45}
+    command:      {value: GET,     source: agents/create-ftp-task.md:52}
+    format:       {value: Binary,  source: agents/create-ftp-task.md:58}
+    transferMode: {value: Passive, source: agents/create-ftp-task.md:59}
+
+  taskFtpFileMonitor:
+    transferMode:  {value: Passive, source: agents/create-remote-file-monitor-task.md:46}
+    ftpFmtype:     {value: Exist,   source: agents/create-remote-file-monitor-task.md:52}
+    minFileScale:  {value: KB,      source: agents/create-remote-file-monitor-task.md:56}
+    pollInterval:
+      value: 30
+      source: agents/create-remote-file-monitor-task.md:63
+      note: Withheld on this corpus -- present on 16 of 17, and the modal value is 10.
+
+  taskFileMonitor:
+    fmtype: {value: Created, source: agents/create-file-monitor-task.md:40}
+
+  taskWebService:
+    protocol:               {value: HTTP(S)/REST, source: agents/create-web-service-task.md:40}
+    httpVersion:            {value: "1.1",        source: agents/create-web-service-task.md:41}
+    httpAuth:
+      value: "None"
+      source: agents/create-web-service-task.md:42
+      note: >-
+        The template says Basic, because 94 of this corpus's 119 Web Service
+        tasks use Basic auth. That is a statistic about one controller, and it
+        means every task `apply` creates inherits authentication nobody chose.
+    httpMethod:             {value: POST,                 source: agents/create-web-service-task.md:52}
+    httpPayloadType:        {value: Raw,                  source: agents/create-web-service-task.md:53}
+    payloadSource:          {value: Form,                 source: agents/create-web-service-task.md:55}
+    soapVersion:            {value: "1.2",                source: agents/create-web-service-task.md:64}
+    soapPayloadType:        {value: Body,                 source: agents/create-web-service-task.md:65}
+    soapResponseOutput:     {value: Body/First Element,   source: agents/create-web-service-task.md:66}
+    responseProcessingType: {value: Default Success Status Code Range, source: agents/create-web-service-task.md:79}
+
+  taskSap:
+    jobClass:
+      value: Low Priority
+      source: agents/create-sap-task.md:112
+      note: Withheld on this corpus -- present on 34 of 144.
+    jobLogChild:      {value: "Yes",  source: agents/create-sap-task.md:131}
+    outputReturnType: {value: OUTERR, source: agents/create-sap-task.md:188}
+    outputReturnSline: {value: "1",   source: agents/create-sap-task.md:192}
+
+  taskUcmd:
+    commandOrScript:   {value: Command, source: agents/create-ucmd-task.md:68}
+    brokerChoice:      {value: Agent,   source: agents/create-ucmd-task.md:83}
+    outputReturnType:  {value: OUTERR,  source: agents/create-ucmd-task.md:128}
+    outputReturnSline: {value: "1",     source: agents/create-ucmd-task.md:132}
+
+  taskZos:
+    outputReturnType:  {value: NONE, source: agents/create-zos-task.md:115}
+    outputReturnSline: {value: "1",  source: agents/create-zos-task.md:117}
+    autoRestartOption:
+      value: "None"
+      confirmed: false
+      source: agents/create-zos-task.md:122
+      note: >-
+        DISPUTED. All 179 corpus objects store "-- None --" and none stores
+        "None"; the two are probably one value spelled two ways. Applying it
+        would make every z/OS task carry the field forever. Set
+        `confirmed: true` only once a controller shows which spelling comes back
+        from a POST that omits the field.
+
+  taskZosMonitor:
+    timeScope:        {value: "-- None --", source: agents/create-zos-monitor-task.md:49}
+    expirationAction: {value: Failed,       source: agents/create-zos-monitor-task.md:52}
+
+  taskIbmi:
+    commandType: {value: CL, source: agents/create-ibmi-task.md:71}
+    endSeverity: {value: 30, source: agents/create-ibmi-task.md:107}
+
+  taskSleep:
+    sleepType: {value: Seconds, source: agents/create-timer-task.md:57}
+
+  taskRecurring:
+    recurrenceType:         {value: Interval, source: agents/create-recurring-task.md:50}
+    recurrenceIntervalUnit: {value: Minutes,  source: agents/create-recurring-task.md:57}
+
+  taskMonitor:
+    monType:          {value: Specific,     source: agents/create-task-monitor-task.md:45}
+    timeScope:        {value: "-- None --", source: agents/create-task-monitor-task.md:92}
+    expirationAction: {value: Failed,       source: agents/create-task-monitor-task.md:95}
+
+  taskUniversalMonitor:
+    eventType:        {value: Global,       source: agents/create-universal-monitor-task.md:37}
+    timeScope:        {value: "-- None --", source: agents/create-universal-monitor-task.md:63}
+    expirationAction: {value: Failed,       source: agents/create-universal-monitor-task.md:66}
+
+  taskVariableMonitor:
+    valueMonitorType: {value: Current, source: agents/create-variable-monitor-task.md:41}
+    valueCondition:   {value: "=",     source: agents/create-variable-monitor-task.md:42}
+    timeLimitUnit:    {value: Hours,   source: agents/create-variable-monitor-task.md:45}
+    expirationAction: {value: Failed,  source: agents/create-variable-monitor-task.md:46}
+
+  taskSystemMonitor:
+    smtype:    {value: DISKFREESPC, source: agents/create-system-monitor-task.md:42}
+    byScale:   {value: MB,          source: agents/create-system-monitor-task.md:45}
+    condition: {value: ">",         source: agents/create-system-monitor-task.md:46}
+
+  taskEmailMonitor:
+    mailboxFolder:    {value: INBOX,        source: agents/create-email-monitor-task.md:71}
+    action:           {value: Mark As Read, source: agents/create-email-monitor-task.md:73}
+    filterLogic:      {value: And,          source: agents/create-email-monitor-task.md:62}
+    expirationAction: {value: Failed,       source: agents/create-email-monitor-task.md:94}
+    timeLimitUnit:    {value: Hours,        source: agents/create-email-monitor-task.md:96}
+
+  taskEmail:
+    listReportFormat: {value: PDF, source: agents/create-email-task.md:77}
+
+  taskPeoplesoft:
+    command: {value: Schedule Process, source: agents/create-peoplesoft-task.md:69}
+
+  taskSql:
+    columnOp: {value: "=", source: agents/create-sql-task.md:50}
+
+  taskStoredProc:
+    resultOp: {value: "=", source: agents/create-stored-proc-task.md:51}
+
+# Fields the Controller rejects outright. Not defaults -- the opposite: there is
+# no value that may be sent, because these are UI-only toggles UAC derives from
+# whether the matching `*Var` field is set.
+#
+# A pattern rather than a list, because UAC grows one per reference field and a
+# list is wrong the week a release adds a pair. Measured: not one `*VarCheck`
+# name occurs in registry/types.yaml, so nothing derived can emit one -- but a
+# bundle's flat body passes unknown keys straight through by design, which is
+# exactly how one reaches the controller and comes back `Unrecognized property`.
+never_send:
+  patterns: ["*VarCheck"]
+  fields:
+    - useSapConnectionVar
+    - useConnectionVar
+  why: >-
+    UI-only var-check toggles. The Controller derives the "use the variable"
+    state from whether the `*Var` field is set, and rejects these as
+    `Unrecognized property`.
+  source: skills/create-task/SKILL.md:114

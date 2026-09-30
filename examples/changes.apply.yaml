@@ -1,0 +1,85 @@
+# uac-compose apply examples/changes.apply.yaml -n   (plan only)
+# Steps run in order; apply updates, renames and deletes, and never creates.
+version: 1
+
+templates:
+  night-agent:              # shared settings, used with like:
+    agent: AGT-02
+    credentials: batch
+  snow:                     # a row, used with like: in add:
+    status: Failed
+    operation: Launch Task
+    task: New Load
+    variables:
+      - failed_task_name: ${ops_task_name}
+
+steps:
+  - delete task: [Tmp A, Tmp B]         # exact names
+
+  - delete task: '*_tmp'                # a wildcard (case ignored)
+    type: linux                         # narrow, as export -t
+
+  - delete trigger:                     # a date in the name: 2024-01-31,
+      - '(19|20)\d\d[-_./]?(0[1-9]|1[0-2])[-_./]?(0[1-9]|[12]\d|3[01])'   # 20240131
+      - '(0?[1-9]|[12]\d|3[01])[./-](0?[1-9]|1[0-2])[./-](19|20)\d\d'     # 31.01.2024
+    regex: true                         # every name is a regex, found anywhere
+    where: {name: {not: 'KEEP_*'}}      # (docs/COOKBOOK.md section 8)
+
+  - rename task: '_\d{8}$'              # Load_20240131 -> Load_2024-01-31
+    regex: true
+    replace: {from: '_(\d{4})(\d{2})(\d{2})$', to: '_\1-\2-\3'}
+
+  - update task: Nightly Load
+    set:                                # compact-style fields, as in a bundle
+      like: night-agent
+      command: load.sh --fast
+
+  - update task: '*Nightly*'            # child rows: other rows stay
+    add:                                # rows as a bundle writes them
+      actions.setVariableActions:
+        - {status: Success, variableName: LAST_RUN, variableValue: '${_date}'}
+      actions.systemOperations:
+        - like: snow                    # a templates: entry; own fields win
+    remove:
+      actions.systemOperations: {operation: Suspend Agent}
+    change:
+      actions.emailNotifications:
+        where: {status: Failed}
+        set: {emailTemplate: Ops Failure}
+
+  - update variable: 'DB_*'
+    set: {value: prod-db}
+
+  - rename task: Nightly Load
+    to: DEV_Nightly Load
+
+  - rename task: '*Sleep*'
+    prefix: DEV_                        # or suffix: _old, or replace: {from: REGEX, to: TEXT}
+
+  - replace task: Old Load              # in every workflow that runs it
+    with: New Load                      # this task instead (it must exist)
+    in: '*Nightly*'                     # workflow names; default '*' = all
+
+  - update task: '*Sleep*'              # a field filter on top of the names
+    where:
+      type: linux
+      agent: 'stone*'                   # wildcard; [a, b] any of; {not: x};
+      command: {contains: sleep}        # {regex: 'sleep \d+'}; {contains: text}
+    set: {agent: AGT-03}
+
+  - delete: Task.find(name='*_old').where(type=linux).where(agent!='prod*')
+
+  - update task: '*'                    # from: list-advanced filters, one call
+    from: {workflowname: Nightly WF}    # (uac-compose find prints steps like this)
+    where: {command: {regex: 'sleep \d+'}}
+    set: {command: sleep 5}
+
+  # Action rows as objects: email action, variable action, system action,
+  # abort action, snmp action. The names are the tasks to look in.
+  - update email action: '*'
+    where: {to: {contains: jane.doe}}            # which rows
+    edit:                                       # a part of a value (regex, case ignored)
+      to: {from: 'jane\.doe@example\.com', to: 'team@example.com'}
+
+  - delete variable action: 'Nightly*'
+    where: {variableName: 'TMP_*'}

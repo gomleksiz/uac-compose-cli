@@ -1,0 +1,42 @@
+# The one nesting the compact style keeps.
+#
+# Field groups were tried and removed: over real converted objects they bought
+# structure nobody asked for, and a reader who wants UAC's own shape has
+# `--style standard`. A task's fields are written flat, in UAC's own names.
+#
+# Late start, late finish and early finish stay grouped, because they are the
+# one family that is genuinely three settings of one thing -- the SLA -- and
+# each third is meaningless without its `*Enabled` flag beside it:
+#
+#   sla:
+#     late_finish:
+#       lfEnabled: true
+#       lfType: Duration
+#       lfDuration: 2h
+#
+# `sla` also carries the two fields that belong to the same question and to no
+# `*Enabled` flag of their own.
+#
+# A block holds only its own fields, so a typo inside one is an error rather
+# than a field nobody notices. Nesting is display only: a grouped object
+# compiles to exactly the same UAC object as a flat one, and a file may write
+# these fields flat instead.
+
+# Inside a block the two-letter prefix says nothing the block has not already
+# said, so `lfDuration` is written `duration`. The full UAC name is accepted
+# too, as it is everywhere else.
+#
+# `implies` says which short field settles the type on its own: a block that
+# states a `duration` IS a Duration constraint, so the type is not written.
+# `Average Duration` is not implied -- it reads the offset fields, not the
+# duration, and it is written out.
+sla:
+  implies:
+    duration: Duration
+  own: [userEstimatedDuration, cpDuration, cpDurationUnit]
+  blocks:
+    late_start: [lsEnabled, lsType, lsTime, lsDuration, lsDayConstraint, lsNthAmount]
+    late_finish: [lfEnabled, lfType, lfTime, lfDuration, lfDayConstraint, lfNthAmount,
+                  lfOffsetType, lfOffsetPercentage, lfOffsetDuration, lfOffsetDurationUnit]
+    early_finish: [efEnabled, efType, efTime, efDuration, efDayConstraint, efNthAmount,
+                   efOffsetType, efOffsetPercentage, efOffsetDuration, efOffsetDurationUnit]

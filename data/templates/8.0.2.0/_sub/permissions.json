@@ -1,0 +1,10 @@
+{
+  "_derived": false,
+  "_source": "controller create defaults for a user group permission row, measured on a live controller: a row stating only its type, name, one operation and its business-service scope (the controller refuses a row without the last two), read back, deleted",
+  "defaultGroup": true,
+  "notGroups": false,
+  "opCreate": false,
+  "opDelete": false,
+  "opExecute": false,
+  "opUpdate": false
+}

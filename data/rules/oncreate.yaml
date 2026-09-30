@@ -1,0 +1,66 @@
+# Fields the controller needs on a create that reading legitimately drops.
+#
+# `inflate` restores everything the type's template defaults, and that covers
+# almost all of it -- a `systemOperations` row without `operation: "Launch
+# Task"` is rejected with "Agent: Field is required", and the derived
+# sub-template puts it back. What it cannot restore is a field the template has
+# no default for.
+#
+# Derivation is *right* not to give one to a field that some real objects leave
+# empty: the simplified form has no way to say "unset", so a default would be
+# resurrected on exactly those objects and `inflate(simplify(x)) == normalize(x)`
+# would stop holding. Measured for `exitCodes`: setting it on the five types
+# that lack it takes the corpus round trip from 5286/5286 to 5268/5286, the 18
+# objects that genuinely have the field empty.
+#
+# So they are filled on the way *out*, and only for a create:
+#
+#   * not on an update, which rewrites only what the bundle states -- a task
+#     whose codes were deliberately cleared must not have them written back;
+#   * not in comparison, where a value the file never stated is not a
+#     difference, and filling it would turn agreement into a conflict;
+#   * not in the template, for the reason above.
+#
+# A field is filled only when the type's spec declares it and the inflated
+# object does not already carry it -- so no list of types needs maintaining
+# here, and a type whose template does default the field is untouched.
+#
+# `ask:` is the same rule put to a *model*. The draft path uses these entries
+# too, so the requirement is stated once: the gap rung complains with `ask:` and
+# `unstated.fill` writes `value:` when the retries do not. Two copies of "a task
+# needs this field" would be one copy with the `when:` clause and one without.
+#
+# `when:` is what stops this being a blunt instrument. A field can be
+# meaningless under a setting the object *does* state, and filling it there
+# fabricates as surely as inventing a field name. Each entry maps a field to
+# the values it may hold for the fill to apply; `null` means the field is
+# absent or empty. Read against the inflated object, so a mode the type's
+# template defaults counts.
+
+fields:
+  exitCodes:
+    value: "0"
+    when:
+      # `exitCodeProcessing` picks how success is decided, and only this mode
+      # reads the codes. Where it does, the field is never empty: all 3,097
+      # corpus tasks with `Success Exitcode Range` state codes, as do 185 of
+      # the 198 that state no mode at all -- UAC applies the same mode itself.
+      #
+      # The other modes decide success from the *output*, and those are exactly
+      # the tasks that legitimately have no codes: `Opswise - Linux Random
+      # Success` and three others use `Success Output Contains` and hold none.
+      # Filling them would add a field their chosen criterion ignores.
+      exitCodeProcessing: ["Success Exitcode Range", null]
+    ask: >-
+      This task decides success from its exit code and says nowhere which codes
+      count. Set "exitCodes" to the codes the description calls successful, or
+      "0" if it does not say -- a task with the field empty has no success
+      criterion at all. Ranges and lists are allowed, as in "0-4" or "0,100".
+    why: >-
+      Which exit codes count as success. `taskUnix`, `taskWindows`, `taskSql`,
+      `taskFtp` and `taskStoredProc` default `exitCodeProcessing` to
+      `Success Exitcode Range` -- the mode that reads this field -- and default
+      no codes, so a task created without it says success is an exit code range
+      and leaves the range blank. The 11 task types whose spec declares
+      `exitCodes` are exactly the 11 that ever set it in 4,837 real tasks, and
+      3,353 of the 3,421 that state it hold `0`.

@@ -1,0 +1,26 @@
+# Lists of references written as plain lists of names.
+#
+#   groupMembers:            groupMembers:
+#   - user:                  - cbruns
+#       name: Christian      - omar
+#       value: cbruns
+#
+# Each row names one object and carries labels the controller fills in from
+# that object: a user's display name, a role's description, an agent's type.
+# Those labels are not the file's to state -- the same rule as the
+# controller-labelled fields in idioms.py -- so a row is written as its name
+# alone, and only when nothing else is left in it. Otherwise the raw rows are
+# written, as for every idiom.
+#
+# `name`  the dotted path to the name inside one row
+# `owned` dotted paths the controller fills in; dropped from the file, and
+#         ignored when checking that the short form is lossless
+
+lists:
+  userGroup:
+    groupMembers: {name: user.value, owned: [user.name]}
+    groupRoles: {name: role.value, owned: [role.description]}
+  unixAgentCluster: &cluster
+    agents: {name: agentName, owned: [type]}
+  windowsAgentCluster: *cluster
+  ibmiAgentCluster: *cluster

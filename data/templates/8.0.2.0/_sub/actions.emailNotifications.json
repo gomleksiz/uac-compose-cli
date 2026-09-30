@@ -1,0 +1,10 @@
+{
+  "_derived": true,
+  "_min_support": 0.6,
+  "listReportFormat": "PDF",
+  "notifyOnEarlyFinish": false,
+  "notifyOnLateFinish": false,
+  "notifyOnLateStart": false,
+  "notifyOnProjectedLate": false,
+  "saveToSentItems": "Default"
+}

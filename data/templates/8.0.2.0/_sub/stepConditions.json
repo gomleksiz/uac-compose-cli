@@ -1,0 +1,7 @@
+{
+  "_derived": true,
+  "_min_support": 0.6,
+  "stepAction": "Continue/Success",
+  "stepCodes": "1-4095",
+  "stepOrder": 0
+}

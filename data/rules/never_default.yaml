@@ -1,0 +1,49 @@
+# Fields that never get a template default, however consistent the data is.
+#
+# A default is right for a setting somebody left alone. It is wrong for:
+#   - a value that names another object (an agent, a task, a resource): which
+#     object is a per-object decision, and the name may not exist on another
+#     controller (SPEC §1.5, LESSONS #11);
+#   - the payload of a record (a header value, an approval link): a default
+#     hides the thing the record is for (LESSONS #14);
+#   - an identity or an ordinal (vertexId, stepOrder).
+#
+# Removing a default is always safe for the round trip -- the simplified form
+# is only less compressed. Measured with this file applied to the shipped
+# 8.0.2.0 templates: 5286 / 5286.
+#
+# Applied when templates are derived (`yarb learn`) AND when any template is
+# loaded, so the shipped corpus templates obey it too.
+#
+# Also never defaulted, derived rather than listed:
+#   top level: registry.reference_fields(type) -- every field with a `*Var`
+#     twin (except resPriority, a number) plus template, opswiseGroups,
+#     calendar, eventTemplate;
+#   sub objects: the name half of every nested var pair
+#     (stepActions.task, virtualResources.resource, ...).
+
+top_level:
+  # taskSql's shipped template defaulted it to [{amount: 1, resource: Oracle}].
+  - virtualResources
+
+sub:
+  # decides which other fields of the row mean anything; 0 of 380 rows omit it
+  - actions.systemOperations.operation
+  # a holiday moved "to" nothing (uac_model derive.py)
+  - observedRules.observedDayOfWeek
+  # names another object; shipped: Nagios-SNMP-TRAP
+  - actions.snmpNotifications.snmpManager
+  # names a task; shipped: SBZOS1A
+  - stepActions.actionCriteriaTask
+  # payload / identity of a step action
+  - stepActions.operation
+  - stepActions.stepName
+  - stepActions.vertexId
+  # payload of an approval link and of an HTTP header
+  - approvalLinks.name
+  - approvalLinks.value
+  - httpHeaders.value
+  # identity / ordinals
+  - criticalEndpoints.vertexId
+  - jobSteps.stepOrder
+  - stepConditions.stepOrder
