@@ -167,14 +167,14 @@ def test_a_group_reads_as_lists_of_names(ts: TemplateSet) -> None:
     _, _, body, _ = compact.emit_object(GROUP, "userGroup", ts)
     assert body["groupMembers"] == ["ada", "alan"]
     assert body["groupRoles"] == ["ops_a"]
-    # a permission row keeps only what differs from the controller's own row
+    # a permission row keeps only what differs from the controller's own row,
+    # its type first and its true operations as one list
     assert body["permissions"] == [
         {
-            "permissionType": "Task",
+            "type": "Task",
+            "ops": ["read", "execute"],
             "nameWildcard": "*",
             "allGroups": False,
-            "opExecute": True,
-            "opRead": True,
             "commands": "ALL",
             "opswiseGroups": ["Finance"],
         }

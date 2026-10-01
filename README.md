@@ -38,8 +38,9 @@ set UAC_COMPOSE_UAC=C:\Tools\uac\uac.exe
 
 ## Documentation
 
-The user guide is a documentation site, built from `docs/` with MkDocs
-(`mkdocs.yml`; Read the Docs builds it with `.readthedocs.yaml`):
+The user guide is online at <https://uac-compose-cli.readthedocs.io/en/latest/>.
+It is built from `docs/` with MkDocs (`mkdocs.yml`; Read the Docs builds it
+with `.readthedocs.yaml`):
 
 | page | what |
 |---|---|
@@ -47,7 +48,7 @@ The user guide is a documentation site, built from `docs/` with MkDocs
 | [Cookbook](docs/COOKBOOK.md) | short recipes: find, change, rename, delete |
 | [Export and import](docs/guide/export-import.md) | many objects at once, mass update, renames, UAC Bundles |
 | [Filters and `find`](docs/guide/filters.md) | `-W` / `where:` tests, regular expressions, the `find` session |
-| [Change files: `apply`](docs/guide/apply.md) | steps, action rows, rows in bundle syntax, backups |
+| [Change files: `apply`](docs/guide/apply.md) | steps, action rows, rows in bundle syntax, backups, new users |
 | [Universal Extensions](docs/guide/extensions.md) | `freeze` and moving Universal tasks |
 | [File format](docs/FORMAT.md) · [Specification](docs/SPEC.md) | the reference |
 

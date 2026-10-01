@@ -1,6 +1,7 @@
 """`uac-compose apply FILE`: ordered steps that update, rename or delete (SPEC §9a).
 
-A change file never creates. Each step names objects -- exact names, a list,
+A change file creates only users (`create user`, with the password from an
+environment variable). Each step names objects -- exact names, a list,
 or a wildcard / regex as `export` reads them -- and says what to do with them:
 
     version: 1
@@ -24,10 +25,12 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
+from functools import cache
 from typing import Any
 
 from uac_compose import emit, importer, references, validate, where, yamlio
@@ -35,6 +38,7 @@ from uac_compose.compile import CompileError, Planned, apply_like, compile_objec
 from uac_compose.core.extensions import ExtensionMap
 from uac_compose.core.normalize import normalize
 from uac_compose.core.templates import TemplateSet
+from uac_compose.paths import data_root
 from uac_compose.transport import (
     KIND_BY_KEY,
     Kind,
@@ -74,6 +78,24 @@ ROW_KINDS = {
 QUERY_ACTIONS = ("delete", "update", "rename")
 ROWS = ("remove", "change", "add")  # the order they apply in, after `set`
 
+#: Users are not a bundle section: `create user` is the one step that creates.
+USERS = Kind("users", "user")
+USER_KEYS = {"comment", "password_env", "set", "groups"}
+#: UserWsData fields a `set:` may not hold: the controller's own, the name
+#: (the step's head says it) and secrets (rule 8: the password comes from
+#: `password_env`).
+USER_NOT_SET = {
+    "sysId",
+    "excludeRelated",
+    "exportReleaseLevel",
+    "exportTable",
+    "retainSysIds",
+    "userName",
+    "userPassword",
+    "tokens",
+}
+ENV_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
 
 class ApplyError(ValueError):
     """The change file cannot be read, or its plan does not hold."""
@@ -105,6 +127,10 @@ class Step:
     """A row kind's list (`actions.emailNotifications`): the step works on its rows."""
     edit: dict[str, Any] = field(default_factory=dict)
     """Row kind updates: field -> {from: REGEX, to: TEXT}, a part of the value."""
+    password_env: str = ""
+    """`create user`: the environment variable that holds the password."""
+    groups: list[str] = field(default_factory=list)
+    """`create user`: the user groups the new user joins."""
 
     @property
     def label(self) -> str:
@@ -179,7 +205,9 @@ def _step(number: int, raw: Any) -> Step:
     else:
         action, word = head.split(None, 1)
     if action == "create":
-        raise ApplyError("apply never creates; use `uac-compose import` for that")
+        if word.strip().lower() == "user":
+            return _user_step(number, head, raw)
+        raise ApplyError("apply creates only users; use `uac-compose import` for the rest")
     row_word = " ".join(word.lower().replace("_", " ").replace("-", " ").split())
     if row_word in ROW_KINDS:
         return _row_step(number, action, head, raw, ROW_KINDS[row_word])
@@ -272,6 +300,49 @@ def _row_step(number: int, action: str, head: str, raw: dict[str, Any], path: st
     return step
 
 
+def _user_step(number: int, head: str, raw: dict[str, Any]) -> Step:
+    """`create user: NAME` + `password_env:` + `set:` (user fields) + `groups:`."""
+    rest = {k: v for k, v in raw.items() if k != head}
+    fields = rest.get("set") or {}
+    if {"password", "userPassword"} & set(rest) or (
+        isinstance(fields, dict) and "userPassword" in fields
+    ):
+        raise ApplyError("a password never belongs in a file; name a variable: `password_env: X`")
+    extra = set(rest) - USER_KEYS
+    if extra:
+        raise ApplyError(f"create user takes no {', '.join(sorted(map(str, extra)))}")
+    name = raw[head]
+    if not isinstance(name, str) or not name.strip():
+        raise ApplyError("create user names one user: `create user: jdoe`")
+    env = rest.get("password_env")
+    if not isinstance(env, str) or not ENV_NAME.match(env):
+        raise ApplyError("create user needs `password_env:` the environment variable to read")
+    if not isinstance(fields, dict):
+        raise ApplyError("`set:` is a mapping of user field -> value")
+    unknown = sorted(str(k) for k in fields if k not in user_fields())
+    if unknown:
+        raise ApplyError(
+            f"a user has no field {', '.join(map(repr, unknown))}; "
+            f"use {', '.join(sorted(user_fields()))}"
+        )
+    groups = rest.get("groups") or []
+    groups = [groups] if isinstance(groups, str) else groups
+    if not isinstance(groups, list) or not all(isinstance(g, str) and g for g in groups):
+        raise ApplyError("`groups:` is a user group name or a list of them")
+    step = Step(number, "create", USERS, [name])
+    step.set, step.password_env, step.groups = fields, env, list(dict.fromkeys(groups))
+    return step
+
+
+@cache
+def user_fields() -> frozenset[str]:
+    """What `set:` may hold on a new user: UAC's UserWsData, from data/openapi.json."""
+    spec = json.loads((data_root() / "openapi.json").read_text())
+    schemas = (spec.get("components") or {}).get("schemas") or spec.get("definitions") or {}
+    props = (schemas.get("UserWsData") or {}).get("properties") or {}
+    return frozenset(props) - USER_NOT_SET
+
+
 def _source(kind_key: str, raw: Any) -> dict[str, str]:
     """`from: {workflowname: X}`: filters `uac <group> list-advanced` takes."""
     if raw is None:
@@ -347,6 +418,10 @@ class Change:
     """What changes, and warnings, one per line."""
     origin: str = ""
     """The name the object has on the controller before the file runs."""
+    groups: list[str] = field(default_factory=list)
+    """`create user`: the groups to add the user to, after it is made."""
+    password_env: str = ""
+    """`create user`: read again when the write runs; the password is never kept."""
 
 
 class Planner:
@@ -360,8 +435,10 @@ class Planner:
         *,
         parallel: int = 1,
         echo: Echo = lambda _: None,
+        environ: Mapping[str, str] | None = None,
     ) -> None:
         self.transport = transport
+        self.environ = os.environ if environ is None else environ
         self.templates = templates
         self.ext = ext
         self.parallel = parallel
@@ -493,6 +570,8 @@ class Planner:
     def _step(self, step: Step, shared: dict[str, Any]) -> list[Change]:
         if step.action == "replace":
             return self._replace(step)
+        if step.action == "create":
+            return [self._create_user(step)]
         names = self._names(step)
         stored = self._read(step.kind, names)
         if step.where and not step.row_path:  # a row kind's where tests rows
@@ -574,6 +653,28 @@ class Planner:
         if not out:
             raise ApplyError(f"no workflow in {step.within} runs {old!r}")
         return out
+
+    def _create_user(self, step: Step) -> Change:
+        """A new user: not on the controller, its password set, its groups there."""
+        name = step.names[0]
+        made = (USERS.key, name) in self.state
+        if made or self.transport.get_user(name) is not None:
+            raise ApplyError(f"user {name!r} exists already (create user makes new users)")
+        if not self.environ.get(step.password_env):
+            raise ApplyError(f"set the password in ${step.password_env} first; it is empty")
+        groups = KIND_BY_KEY["user_groups"]
+        absent = [g for g, obj in self._read(groups, step.groups).items() if obj is None]
+        if absent:
+            raise ApplyError(f"no user group {', '.join(map(repr, absent))} on the controller")
+        # A new user can log in (active) and must change the password first.
+        user = {"userName": name, "active": True, "passwordNeedsReset": True, **step.set}
+        self.state[(USERS.key, name)] = user
+        lines = [f"password from ${step.password_env}"]
+        lines += [f"{k}: {v}" for k, v in user.items() if k != "userName"]
+        lines += [f"+ group {g}" for g in step.groups]
+        change = Change(step, USERS, name, "create", payload=user, lines=lines, origin=name)
+        change.groups, change.password_env = step.groups, step.password_env
+        return change
 
     def _running(self, task: str) -> list[str]:
         """The workflows that run `task` once the steps before this one ran.
@@ -806,7 +907,7 @@ def saved(plan: list[Change], planner: Planner) -> list[Saved]:
     now: dict[tuple[str, str], str | None] = {}
     kinds: dict[tuple[str, str], Kind] = {}
     for change in plan:
-        if change.action == "no change":
+        if change.action in ("no change", "create"):  # a new user has no old state
             continue
         key = (change.kind.key, change.origin or change.name)
         kinds[key] = change.kind
@@ -939,12 +1040,20 @@ def describe(change: Change) -> list[str]:
     return [head, *(f"      {line}" for line in change.lines if not line.startswith("name:"))]
 
 
-def run(changes: list[Change], transport: Transport, echo: Echo) -> None:
+def run(
+    changes: list[Change],
+    transport: Transport,
+    echo: Echo,
+    environ: Mapping[str, str] | None = None,
+) -> None:
     """One write at a time, in order; the first error stops the rest."""
+    env = os.environ if environ is None else environ
     todo = [c for c in changes if c.action != "no change"]
     for n, change in enumerate(todo, 1):
         try:
-            if change.action == "delete":
+            if change.action == "create":
+                _create_user(change, transport, env)
+            elif change.action == "delete":
                 transport.delete(change.kind, change.name)
             else:
                 assert change.payload is not None
@@ -957,6 +1066,17 @@ def run(changes: list[Change], transport: Transport, echo: Echo) -> None:
             ) from error
         target = f" -> {change.new_name}" if change.action == "rename" else ""
         echo(f"[{n}/{len(todo)}] {change.action}d {change.kind.key}/{change.name}{target}")
+
+
+def _create_user(change: Change, transport: Transport, env: Mapping[str, str]) -> None:
+    """The password is read here, sent once, and kept nowhere."""
+    password = env.get(change.password_env)
+    if not password:
+        raise TransportError(f"${change.password_env} is empty; the user was not made")
+    assert change.payload is not None
+    transport.create_user({**change.payload, "userPassword": password})
+    for group in change.groups:
+        transport.add_user_to_group(change.name, group)
 
 
 def object_count(changes: list[Change]) -> int:

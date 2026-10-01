@@ -29,7 +29,7 @@ from uac_compose.core.inflate import inflate
 from uac_compose.core.templates import TemplateSet
 from uac_compose.paths import data_root
 
-SECRETS = ("runtimePassword", "runtimePassPhrase", "runtimeToken", "defaultPwd")
+SECRETS = ("runtimePassword", "runtimePassPhrase", "runtimeToken", "defaultPwd", "userPassword")
 
 
 @dataclass(frozen=True)

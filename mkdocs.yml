@@ -1,4 +1,5 @@
 site_name: uac-compose
+site_url: https://uac-compose-cli.readthedocs.io/en/latest/
 site_description: Stonebranch UAC definitions as readable .uac.yaml files, and changes in place
 repo_url: https://github.com/gomleksiz/uac-compose-cli
 edit_uri: edit/main/docs/

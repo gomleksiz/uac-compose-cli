@@ -1,4 +1,4 @@
-"""`uac-compose apply`: ordered update, rename and delete steps; never create."""
+"""`uac-compose apply`: ordered update, rename and delete steps; create only users."""
 
 from __future__ import annotations
 
@@ -64,7 +64,18 @@ def _task(fake: FakeTransport, name: str) -> dict[str, Any] | None:
 @pytest.mark.parametrize(
     ("text", "said"),
     [
-        ("steps:\n  - create task: X\n", "apply never creates"),
+        ("steps:\n  - create task: X\n", "apply creates only users"),
+        ("steps:\n  - create user: u\n", "needs `password_env:`"),
+        ("steps:\n  - create user: u\n    password: s3cret\n", "never belongs in a file"),
+        (
+            "steps:\n  - create user: u\n    password_env: P\n    set: {userPassword: x}\n",
+            "never belongs in a file",
+        ),
+        (
+            "steps:\n  - create user: u\n    password_env: P\n    set: {nick: x}\n",
+            "no field 'nick'",
+        ),
+        ("steps:\n  - create user: u\n    password_env: P\n    to: v\n", "takes no to"),
         ("steps:\n  - delete widget: X\n", "unknown kind 'widget'"),
         ("steps:\n  - update task: X\n", "update needs `set:`"),
         ("steps:\n  - rename task: X\n", "rename needs one of"),
@@ -256,6 +267,7 @@ def test_the_example_file_reads() -> None:
         "update",
         "update",
         "delete",
+        "create",
     ]
     assert "night-agent" in changes.templates
 
@@ -774,3 +786,93 @@ def test_like_in_a_row_names_a_template_and_never_loops(
     loop = "templates:\n  a: {like: b}\n  b: {like: a}\n" + add.format("a")
     code, out = _apply(tmp_path, loop, "-n")
     assert code == 1 and "`like:` loops: a -> b -> a" in out
+
+
+# --- create user ------------------------------------------------------------------------
+
+NEW_USER = """steps:
+  - create user: jdoe
+    password_env: JDOE_PW
+    set: {firstName: Jane, email: jane@example.com}
+    groups: [Ops]
+"""
+
+
+@pytest.fixture
+def users(fake: FakeTransport) -> FakeTransport:
+    fake.objects["user_groups"] = [{"type": "userGroup", "name": "Ops", "sysId": "g1"}]
+    fake.objects["users"] = [{"userName": "taken"}]
+    return fake
+
+
+def test_create_user_with_a_password_from_the_environment_and_a_group(
+    users: FakeTransport, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("JDOE_PW", "s3cret-pw")
+    code, out = _apply(tmp_path, NEW_USER, "-y")
+    assert code == 0, out
+    assert "[1] create    users/jdoe" in out and "password from $JDOE_PW" in out
+    assert "+ group Ops" in out and "s3cret-pw" not in out
+    (made,) = [w for verb, w in users.writes if verb == "create_user"]
+    assert made == {
+        "userName": "jdoe",
+        "active": True,  # a new user can log in unless set says otherwise
+        "passwordNeedsReset": True,  # reset at first login unless set says otherwise
+        "firstName": "Jane",
+        "email": "jane@example.com",
+        "userPassword": "s3cret-pw",
+    }
+    assert ("add_user_to_group", {"user": "jdoe", "group": "Ops"}) in users.writes
+
+
+def test_a_step_can_turn_the_first_login_reset_off(
+    users: FakeTransport, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("JDOE_PW", "pw")
+    text = NEW_USER.replace("firstName: Jane", "passwordNeedsReset: false, active: false")
+    assert _apply(tmp_path, text, "-y")[0] == 0
+    (made,) = [w for verb, w in users.writes if verb == "create_user"]
+    assert made["passwordNeedsReset"] is False and made["active"] is False
+
+
+@pytest.mark.parametrize(
+    ("change", "said"),
+    [
+        (("jdoe", "taken"), "user 'taken' exists already"),
+        (("[Ops]", "[Ops, Nobody]"), "no user group 'Nobody'"),
+        (("JDOE_PW", "UNSET_PW"), "set the password in $UNSET_PW first"),
+    ],
+)
+def test_create_user_is_refused_before_anything_runs(
+    users: FakeTransport,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    change: tuple[str, str],
+    said: str,
+) -> None:
+    monkeypatch.setenv("JDOE_PW", "pw")
+    monkeypatch.delenv("UNSET_PW", raising=False)
+    code, out = _apply(tmp_path, NEW_USER.replace(*change), "-y")
+    assert code == 1 and said in out
+    assert users.writes == []
+
+
+def test_create_user_twice_in_one_file_is_refused(
+    users: FakeTransport, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("JDOE_PW", "pw")
+    twice = NEW_USER + NEW_USER.split("steps:\n", 1)[1]
+    code, out = _apply(tmp_path, twice, "-y")
+    assert code == 1 and "exists already" in out and users.writes == []
+
+
+def test_a_backup_skips_the_new_user(
+    users: FakeTransport, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("JDOE_PW", "pw")
+    text = NEW_USER + "  - update task: Load\n    set: {command: new.sh}\n"
+    backup = tmp_path / "before.json"
+    code, out = _apply(tmp_path, text, "-y", "-B", str(backup))
+    assert code == 0, out
+    saved = backup.read_text()
+    assert '"Load"' in saved and "jdoe" not in saved and "pw" not in saved.split('"profile"')[0]

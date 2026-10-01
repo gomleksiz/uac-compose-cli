@@ -8,8 +8,10 @@ UAC field is written; `parse` accepts both forms, so any UAC field stays legal.
 - `email_on:` for one plain email notification
 - set-variable runs: adjacent setVariableActions rows alike but for the
   variable are one row with `variables: [- name: value]`
-- calendars: `businessDays: [Monday, ...]`, `customDays: [name]`;
-  custom days: `observed: {Sat: Fri}`
+- calendars: `businessDays: [Monday, ...]`, `customDays: [name]`,
+  `quarters: [Jan 1, Apr 1, Jul 1, Oct 1]`; custom days: `observed: {Sat: Fri}`
+- flag lists in sub-object rows: `ops: [read, update]` for `opRead: true,
+  opUpdate: true` (data/rules/aliases.yaml `flags:`)
 - event template attributes: `- file_name: File Name` for
   `{name: file_name, label: File Name, type: Text}`; `type:` only when not Text
 """
@@ -26,6 +28,7 @@ import yaml
 from uac_compose import registry, uacdocs
 from uac_compose.core.extensions import ExtensionMap
 from uac_compose.paths import data_root
+from uac_compose.yamlio import Flow
 
 PAIR_FIELDS = ("variables", "httpHeaders", "urlParameters", "providerParameters")
 PAIR_KEYS = frozenset({"name", "value"})
@@ -413,7 +416,7 @@ def emit_business_days(stored: Any) -> list[str] | None:
     if not isinstance(value, str) or not value:
         return None
     days = value.split(",")
-    return days if all(days) and ",".join(days) == value else None
+    return Flow(days) if all(days) and ",".join(days) == value else None
 
 
 def parse_business_days(written: Any) -> Any:
@@ -458,6 +461,62 @@ def parse_observed(written: Any) -> Any:
     if not isinstance(written, dict):
         return written
     return [{"actualDayOfWeek": a, "observedDayOfWeek": o} for a, o in written.items()]
+
+
+# A calendar's four quarter starts, `{day: '1', month: Jan}` each, are one
+# line: `quarters: [Jan 1, Apr 1, Jul 1, Oct 1]`. All four or none.
+QUARTERS = ("firstQuarterStart", "secondQuarterStart", "thirdQuarterStart", "fourthQuarterStart")
+QUARTER = re.compile(r"^(\S+) (\d+)$")
+
+
+def _quarter(stored: Any) -> str | None:
+    if not isinstance(stored, dict) or set(stored) != {"day", "month"}:
+        return None
+    day, month = stored["day"], stored["month"]
+    if not isinstance(day, str) or not isinstance(month, str):
+        return None
+    text = f"{month} {day}"
+    return text if _parse_quarter(text) == stored else None
+
+
+def _parse_quarter(written: Any) -> Any:
+    m = QUARTER.match(written) if isinstance(written, str) else None
+    return {"day": m.group(2), "month": m.group(1)} if m else written
+
+
+def emit_quarters(body: dict[str, Any]) -> dict[str, Any]:
+    starts = [_quarter(body.get(q)) for q in QUARTERS]
+    if "quarters" in body or any(s is None for s in starts):
+        return body
+    out: dict[str, Any] = {}
+    for key, value in body.items():
+        if key == QUARTERS[0]:
+            out["quarters"] = Flow(starts)
+        elif key not in QUARTERS:
+            out[key] = value
+    return out
+
+
+def parse_quarters(body: dict[str, Any], where: str) -> dict[str, Any]:
+    if "quarters" not in body:
+        return body
+    written = body["quarters"]
+    if not isinstance(written, list) or len(written) != len(QUARTERS):
+        raise IdiomError(f"{where}: quarters takes four starts, e.g. [Jan 1, Apr 1, Jul 1, Oct 1]")
+    both = [q for q in QUARTERS if q in body]
+    if both:
+        raise IdiomError(f"{where}: quarters and {both[0]} say the same thing; write one")
+    out: dict[str, Any] = {}
+    for key, value in body.items():
+        if key == "quarters":
+            for field, start in zip(QUARTERS, written, strict=True):
+                row = _parse_quarter(start)
+                if not isinstance(row, dict):
+                    raise IdiomError(f"{where}: quarter start {start!r} is not like `Jan 1`")
+                out[field] = row
+        else:
+            out[key] = value
+    return out
 
 
 # --- event template attributes ------------------------------------------------------------
@@ -589,6 +648,52 @@ def sub_pairs() -> frozenset[str]:
     return frozenset(_alias_rules().get("pairs") or ())
 
 
+@cache
+def sub_flags(path: str) -> dict[str, dict[str, str]]:
+    """`{list name: {uac flag: word}}` for the rows at `path`."""
+    found: dict[str, dict[str, str]] = (_alias_rules().get("flags") or {}).get(path) or {}
+    return found
+
+
+def emit_flags(row: dict[str, Any], path: str) -> dict[str, Any]:
+    """The flags a row holds `true` as one list of words, where the first of them was."""
+    for name, table in sub_flags(path).items():
+        words = [word for field, word in table.items() if row.get(field) is True]
+        if not words or name in row:
+            continue
+        out: dict[str, Any] = {}
+        for key, value in row.items():
+            if key in table and value is True:
+                if name not in out:
+                    out[name] = Flow(words)
+            else:
+                out[key] = value
+        row = out
+    return row
+
+
+def parse_flags(row: dict[str, Any], path: str) -> dict[str, Any]:
+    for name, table in sub_flags(path).items():
+        if name not in row:
+            continue
+        written = row[name]
+        words = [written] if isinstance(written, str) else written
+        back = {word: field for field, word in table.items()}
+        if not isinstance(words, list) or not all(w in back for w in words):
+            raise IdiomError(f"{path}: {name} takes a list of {', '.join(back)}")
+        out: dict[str, Any] = {}
+        for key, value in row.items():
+            if key != name:
+                out[key] = value
+                continue
+            for word in words:
+                if back[word] in row:
+                    raise IdiomError(f"{path}: {name} and {back[word]} say the same thing")
+                out[back[word]] = True
+        row = out
+    return row
+
+
 def _rename(row: dict[str, Any], table: dict[str, str]) -> dict[str, Any]:
     return {table.get(k, k): v for k, v in row.items()}
 
@@ -612,7 +717,7 @@ def emit_rows(value: Any, path: str) -> Any:
             out[key] = held if pairs is None or parse_pairs(pairs) != held else pairs
         else:
             out[key] = emit_rows(held, child) if isinstance(held, dict | list) else held
-    return _reorder(_rename(out, sub_aliases(path)), sub_order(path))
+    return _reorder(_rename(emit_flags(out, path), sub_aliases(path)), sub_order(path))
 
 
 def parse_rows(value: Any, path: str) -> Any:
@@ -622,7 +727,7 @@ def parse_rows(value: Any, path: str) -> Any:
         return value
     back = {v: k for k, v in sub_aliases(path).items()}
     out: dict[str, Any] = {}
-    for key, held in _rename(value, back).items():
+    for key, held in parse_flags(_rename(value, back), path).items():
         child = f"{path}.{key}"
         if child in sub_pairs():
             out[key] = parse_pairs(held)
@@ -669,6 +774,8 @@ def emit(type_name: str, body: dict[str, Any], ext: ExtensionMap | None = None) 
             out[typed[0]] = typed[1]
         else:
             out[key] = value
+    if type_name == "calendar":
+        out = emit_quarters(out)
     return _rename(emit_var_pairs(type_name, out), effective_aliases(type_name, body, ext))
 
 
@@ -680,6 +787,8 @@ def parse(
     body = _rename(body, {v: k for k, v in table.items()})
     body = {k: parse_rows(v, k) if isinstance(v, dict | list) else v for k, v in body.items()}
     body = parse_var_pairs(type_name, body)
+    if type_name == "calendar":
+        body = parse_quarters(body, where)
     durations = duration_fields(type_name)
     members = member_lists(type_name)
     out: dict[str, Any] = {}

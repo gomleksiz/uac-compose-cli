@@ -86,9 +86,32 @@ uac-compose apply changes.apply.yaml -n -v   # look: every change, nothing writt
 uac-compose apply changes.apply.yaml         # do it: shows the plan, asks, then writes
 ```
 
-`apply` never creates objects. Before it writes, it checks each step: every
-object must exist, the fields must be valid, and every object a change
-names (a task to launch, a credential...) must exist.
+`apply` creates only users (see below). Before it writes, it checks each
+step: every object must exist, the fields must be valid, and every object a
+change names (a task to launch, a credential...) must exist.
+
+### Create a user and add it to a group
+
+The password is never in the file. Put it in an environment variable, and
+name the variable in the step:
+
+```yaml
+steps:
+  - create user: jdoe
+    password_env: JDOE_PW
+    set: {firstName: Jane, lastName: Doe, email: jane.doe@example.com}
+    groups: [Everything Group]
+```
+
+```bash
+read -rs JDOE_PW && export JDOE_PW     # type the password; it is not shown
+uac-compose apply users.apply.yaml -n  # check: the user is new, the groups exist
+uac-compose apply users.apply.yaml
+```
+
+A new user is active, and must change the password at first login. To
+change either, add `active: false` or `passwordNeedsReset: false` under
+`set:`.
 
 ---
 

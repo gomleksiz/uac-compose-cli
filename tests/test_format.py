@@ -520,6 +520,121 @@ def test_attributes_in_uac_shape_still_compile() -> None:
     assert back["attributes"] == ATTRIBUTES
 
 
+# --- 15. calendars, custom days and permission rows ------------------------------------
+
+QUARTER_STARTS = {
+    "firstQuarterStart": {"day": "1", "month": "Jan"},
+    "secondQuarterStart": {"day": "1", "month": "Apr"},
+    "thirdQuarterStart": {"day": "1", "month": "Jul"},
+    "fourthQuarterStart": {"day": "1", "month": "Oct"},
+}
+
+
+def _calendar(**fields: Any) -> dict[str, Any]:
+    return {"type": "calendar", "name": "C", **fields}
+
+
+def test_quarter_starts_are_one_line(templates: TemplateSet) -> None:
+    stored = _calendar(businessDays={"value": "Monday,Friday"}, **QUARTER_STARTS)
+    body = _emit(stored, "calendar", templates)
+    assert body["quarters"] == ["Jan 1", "Apr 1", "Jul 1", "Oct 1"]
+    assert not set(QUARTER_STARTS) & set(body)
+    text = yamlio.dump(body)
+    assert "quarters: [Jan 1, Apr 1, Jul 1, Oct 1]\n" in text
+    assert "businessDays: [Monday, Friday]\n" in text
+    assert _roundtrip(stored, "calendar", templates) == compile_object(
+        "calendars", "C", {"businessDays": ["Monday", "Friday"], **QUARTER_STARTS}
+    )
+
+
+def test_three_quarter_starts_stay_as_they_are(templates: TemplateSet) -> None:
+    three = {k: v for k, v in QUARTER_STARTS.items() if k != "fourthQuarterStart"}
+    body = _emit(_calendar(**three), "calendar", templates)
+    assert "quarters" not in body and body["firstQuarterStart"] == three["firstQuarterStart"]
+
+
+def test_quarters_and_a_quarter_start_together_are_refused() -> None:
+    with pytest.raises(ValueError, match="say the same thing"):
+        compile_object(
+            "calendars",
+            "C",
+            {"quarters": ["Jan 1", "Apr 1", "Jul 1", "Oct 1"], **QUARTER_STARTS},
+        )
+    with pytest.raises(ValueError, match="four starts"):
+        compile_object("calendars", "C", {"quarters": ["Jan 1"]})
+
+
+def test_a_custom_day_hides_the_date_fields_its_ctype_does_not_read(
+    templates: TemplateSet,
+) -> None:
+    unread = {"dayofweek": "Sun", "relfreq": "1st", "nthAmount": 1, "nthType": "Day"}
+    stored = {
+        "type": "customDay",
+        "name": "D",
+        "ctype": "Absolute Repeating Date",
+        "month": "Jul",
+        "day": 4,
+        "adjustment": "None",
+        "adjustmentAmount": 1,
+        "adjustmentType": "Day",
+        **unread,
+    }
+    body = _emit(stored, "customDay", templates)
+    assert not set(unread) & set(body)
+    assert "adjustmentAmount" not in body and "adjustmentType" not in body
+    assert body["month"] == "Jul" and body["day"] == 4
+
+
+def test_an_nth_custom_day_keeps_its_nth_fields(templates: TemplateSet) -> None:
+    stored = {
+        "type": "customDay",
+        "name": "D",
+        "ctype": "Relative Repeating Date",
+        "relfreq": "Nth",
+        "nthAmount": 7,
+        "nthType": "Day",
+        "day": 1,
+    }
+    body = _emit(stored, "customDay", templates)
+    assert body["nthAmount"] == 7 and "day" not in body
+
+
+PERMISSION = {
+    "permissionType": "Script",
+    "nameWildcard": "*",
+    "allGroups": True,
+    "opCreate": True,
+    "opDelete": False,
+    "opExecute": True,
+    "opRead": False,
+    "opUpdate": False,
+}
+
+
+def _group(*rows: dict[str, Any]) -> dict[str, Any]:
+    return {"type": "userGroup", "name": "G", "permissions": list(rows)}
+
+
+def test_a_permission_row_says_its_type_then_its_operations(templates: TemplateSet) -> None:
+    (row,) = _emit(_group(PERMISSION), "userGroup", templates)["permissions"]
+    assert list(row)[:2] == ["type", "ops"]
+    assert row["type"] == "Script"
+    assert row["ops"] == ["create", "execute"]
+    assert row["opRead"] is False  # a false flag not filled on create keeps its name
+    assert "opCreate" not in row and "opExecute" not in row
+    assert _roundtrip(_group(PERMISSION), "userGroup", templates)["permissions"][0][
+        "opCreate"
+    ] is True
+
+
+def test_ops_and_the_flag_it_names_together_are_refused() -> None:
+    row = {"type": "Script", "ops": ["read"], "opRead": True}
+    with pytest.raises(ValueError, match="say the same thing"):
+        compile_object("user_groups", "G", {"permissions": [row]})
+    with pytest.raises(ValueError, match="ops takes a list"):
+        compile_object("user_groups", "G", {"permissions": [{"type": "Script", "ops": ["run"]}]})
+
+
 # --- the standard style renames nothing ---------------------------------------------------
 
 

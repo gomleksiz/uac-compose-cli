@@ -25,7 +25,7 @@ uac-compose apply changes.apply.yaml -n             # the plan of a change file;
 | `import` | apply a bundle: create, reuse, update, or report a conflict |
 | `freeze` | save the Universal Extensions a bundle needs, so `import` can install them |
 | `show` | show the parameters of a Universal Extension on a controller |
-| `apply` | run a change file: update, rename and delete objects in place |
+| `apply` | run a change file: update, rename and delete objects in place; create users |
 | `find` | build and test a filter for a change file, interactively |
 
 Every command is described in the [command reference](reference/commands.md).

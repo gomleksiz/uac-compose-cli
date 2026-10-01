@@ -1,5 +1,5 @@
 # uac-compose apply examples/changes.apply.yaml -n   (plan only)
-# Steps run in order; apply updates, renames and deletes, and never creates.
+# Steps run in order; apply updates, renames and deletes. It creates users only.
 version: 1
 
 templates:
@@ -83,3 +83,11 @@ steps:
 
   - delete variable action: 'Nightly*'
     where: {variableName: 'TMP_*'}
+
+  # A new user. The password is never in the file: export JDOE_PW first.
+  # The user is active and must change it at first login (set active: false
+  # or passwordNeedsReset: false to change that).
+  - create user: jdoe
+    password_env: JDOE_PW
+    set: {firstName: Jane, lastName: Doe, email: jane.doe@example.com}
+    groups: [Everything Group]          # each group must exist

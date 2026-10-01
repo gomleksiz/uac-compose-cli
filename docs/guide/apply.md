@@ -1,7 +1,8 @@
 # Change files: `apply`
 
 A change file is a list of steps that run in order. It updates, renames and
-deletes objects that exist; it never creates them.
+deletes objects that exist. The one thing it creates is a user
+([`create user`](#create-users)); use `import` to create anything else.
 
 ```yaml
 version: 1
@@ -34,7 +35,8 @@ The writes then run one at a time and stop at the first error. See
 
 A step's first key is `<action> <kind>: <names>`:
 
-- **action:** `delete`, `update`, `rename`, `replace`.
+- **action:** `delete`, `update`, `rename`, `replace`; and `create` for
+  users only.
 - **kind:** `task`, `trigger`, `variable`, `credential`, `script`,
   `calendar`, ... or a row inside a task: `email action`, `variable action`,
   `system action`, `abort action`, `snmp action`.
@@ -78,6 +80,57 @@ steps:
 
 `set:` replaces a field of the row; `edit:` changes part of it. Run with `-n`
 first: the plan lists every task and row it would change.
+
+## Create users
+
+`create user: NAME` makes a new user, gives it a password, and adds it to
+user groups. The password is never in the file: the step names an
+environment variable, and `apply` reads the password from it.
+
+```yaml
+version: 1
+steps:
+  - create user: jdoe
+    password_env: NEW_USER_PW              # required: the variable to read
+    set:                                   # optional: UAC user fields
+      firstName: Jane
+      lastName: Doe
+      email: jane.doe@example.com
+    groups: [Everything Group]             # optional: one name or a list
+  - create user: asmith
+    password_env: NEW_USER_PW              # several users can share one variable
+    set: {firstName: Ann, lastName: Smith, email: ann.smith@example.com}
+    groups: [Everything Group, Operators]
+```
+
+```bash
+read -rs NEW_USER_PW && export NEW_USER_PW   # type the password; it is not shown
+uac-compose apply users.apply.yaml -n        # the plan: nothing is written
+uac-compose apply users.apply.yaml
+```
+
+A new user is **active** and must **change the password at first login**.
+To change either, write `active: false` or `passwordNeedsReset: false`
+under `set:`.
+
+| key | does |
+|---|---|
+| `password_env:` | the environment variable that holds the password (required) |
+| `set:` | user fields as UAC names them: `firstName`, `middleName`, `lastName`, `email`, `title`, `department`, `timeZone`, `active`, `passwordNeedsReset`, `loginMethod`, `browserAccess`, `commandLineAccess`, `webServiceAccess`... |
+| `groups:` | user groups to add the user to; each must exist |
+
+The plan stops, and nothing is written, when:
+
+- the user exists already, or the file creates it twice;
+- a group in `groups:` does not exist;
+- the variable is empty or not set;
+- `set:` names a field a user does not have;
+- the file holds a password (`password:`, or `userPassword` under `set:`).
+
+The password is read when the plan is made and again just before the write.
+It is not printed, and a `--backup` file leaves the new user out: it has no
+earlier state to restore. The writes are `uac user create`, then
+`uac user add-group` for each group.
 
 ## Rows in bundle syntax
 

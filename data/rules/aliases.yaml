@@ -44,6 +44,9 @@ sub:
     notifyOnLateStart: on_late_start
     notifyOnEarlyFinish: on_early_finish
     notifyOnProjectedLate: on_projected_late
+  # A user group permission row: what it grants on, then the operations.
+  permissions:
+    permissionType: type
 
 # The order the first fields of a sub-object row are written in, so a reader
 # meets what the row IS before how it is configured. Fields not named here
@@ -54,8 +57,18 @@ order:
   actions.abortActions: [status]
   actions.emailNotifications: [status]
   actions.snmpNotifications: [status]
+  permissions: [type, ops]
 
 # Fields stored as `[{name, value}]` and written as `- name: value`, addressed
 # by their dotted path inside the object.
 pairs:
   - actions.systemOperations.variables
+
+# Boolean flags of one row written as one list of the words for those that
+# are `true`: `ops: [read, update]` is `opRead: true, opUpdate: true`. A flag
+# that is `false` keeps its UAC name (`opRead: false`). Measured on two live
+# controllers: 1,265 user group permission rows, every one with all five.
+flags:
+  permissions:
+    ops: {opCreate: create, opRead: read, opUpdate: update, opDelete: delete, opExecute: execute}
+

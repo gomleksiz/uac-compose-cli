@@ -299,7 +299,10 @@ overrides for `triggerFm/Um/Em/Tm/Vm/Zm`. Raw names always work.
   `... and ...`, `... at run time`). Unrenderable → raw.
 - **Calendars**: `businessDays: [Monday, …]`, `customDays: [name]`, custom day
   `observed: {Sat: Fri}`. Refuse the wrong weekday vocabulary (custom day
-  `Sun`, calendar `Sunday`).
+  `Sun`, calendar `Sunday`). `quarters: [Jan 1, Apr 1, Jul 1, Oct 1]` for the
+  four quarter starts. Short fixed-word lists are written on one line.
+- **Flag lists** (`data/rules/aliases.yaml` `flags:`): a user group permission
+  row writes its true `op*` flags as `ops: [create, read, ...]`.
 - **Var-pair idiom** (from the docs' pair rule): emit `agent: ${ac}` for a
   stored `agentVar: ${ac}`; compile routes a value containing `${` to the
   `*Var` half, a literal to the plain half. Lossless because UAC never fills
@@ -560,8 +563,8 @@ uac-compose freeze [FILE] [--out DIR] [--refresh] [--parallel 4]
 uac-compose apply FILE [-n] [-y] [-v] [-j N]
 ```
 A change file: ordered steps that **update, rename or delete** existing
-objects; never create (`create` is refused). Example:
-`examples/changes.apply.yaml`.
+objects. The one thing it creates is a user (`create user`); any other
+`create` is refused. Example: `examples/changes.apply.yaml`.
 - A step's first key is `<delete|update|rename> <kind>`, the kind any `-t`
   word; its value one name, a list, or a pattern (the export rules: wildcard,
   or `regex: true`; `type:` narrows as `-t`).
@@ -574,6 +577,16 @@ objects; never create (`create` is refused). Example:
   `variables: [- name: value]`), after `compile.apply_like` applies its
   `like:` from `templates:` (the object rules: in order, own fields win).
   `remove` and `where` test stored UAC fields.
+- `create user: NAME` + `password_env: VAR` (required) + `set:` (UAC
+  UserWsData fields, from `data/openapi.json`) + `groups:` (user group names).
+  The password is read from the environment, at plan time to check it is
+  set and again at write time; it is never in the file, the plan output or
+  a backup (rule 8; `userPassword` is in `validate.SECRETS`). The plan
+  refuses a user that exists, a group that does not, and an empty
+  variable. `active: true` and `passwordNeedsReset: true` unless `set:` says
+  otherwise. The
+  write is `uac user create`, then `uac user add-group` for each group. A
+  backup skips the new user: it has no earlier state.
 - `rename`: `to` (one object), `prefix`, `suffix` or `replace {from, to}`;
   may also carry `set`/rows. An update with the stored sysId: in place.
 - `replace task: OLD` with `with: NEW` (must exist) and `in:` (workflow

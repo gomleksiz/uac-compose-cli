@@ -699,7 +699,7 @@ def apply_(
     backup: str | None,
     backup_format: str | None,
 ) -> None:
-    """Run a change file: update, rename and delete steps, in order. Never creates.
+    """Run a change file: update, rename and delete steps, in order. Creates only users.
 
     Every step is planned first, reading live; nothing is written until the
     whole plan holds and you say yes. The first failed write stops the rest.

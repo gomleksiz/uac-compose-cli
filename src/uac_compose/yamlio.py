@@ -5,8 +5,8 @@
 - `comment:` and `create_only:` are stripped at every depth on load, after
   `create_only` has been read.
 - The dump is deterministic (insertion order), quotes any string that would
-  reload as another type, writes `position: [x, y]` in flow style, multi-line
-  text as a `|` block, and an empty member as `NAME:`.
+  reload as another type, writes `position: [x, y]` and any `Flow` list in
+  flow style, multi-line text as a `|` block, and an empty member as `NAME:`.
 """
 
 from __future__ import annotations
@@ -60,6 +60,14 @@ class Dumper(yaml.SafeDumper):
     pass
 
 
+class Flow(list[Any]):
+    """A list the dump writes on one line: `[Monday, Friday]`. Equal to a plain list."""
+
+
+def _flow(dumper: yaml.SafeDumper, values: Flow) -> yaml.Node:
+    return dumper.represent_sequence("tag:yaml.org,2002:seq", values, flow_style=True)
+
+
 def _none(dumper: yaml.SafeDumper, _: Any) -> yaml.Node:
     return dumper.represent_scalar("tag:yaml.org,2002:null", "")
 
@@ -95,6 +103,7 @@ def _float(dumper: yaml.SafeDumper, value: float) -> yaml.Node:
 
 Dumper.add_representer(type(None), _none)
 Dumper.add_representer(list, _list)
+Dumper.add_representer(Flow, _flow)
 Dumper.add_representer(str, _str)
 Dumper.add_representer(float, _float)
 

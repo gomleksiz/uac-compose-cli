@@ -271,6 +271,8 @@ The command prints one line per entry, and the total, on stderr.
 | enum | `outputType: STDOUT` (also accepts `1` or `Standard Output`) | `STDOUT` |
 | `email_on` (in `actions:`) | `email_on: [failure, late finish]` + `email_connection` / `email_template` | one notification with only a status (Failed/Success), late finish, connection, template; anything more stays raw |
 | calendars | `businessDays: [Monday, Friday]`, `customDays: [Xmas]` | `{value: "Monday,Friday"}`, `[{name: Xmas}]` |
+| quarters | `quarters: [Jan 1, Apr 1, Jul 1, Oct 1]` | the four `*QuarterStart: {day: '1', month: Jan}`; all four or none |
+| permission rows | `- type: Script` + `ops: [create, read]` | `permissionType`, and `opCreate: true`, `opRead: true`; a `false` flag keeps its UAC name (1,265 rows on two live controllers) |
 | custom days | `observed: {Sat: Fri}` | `observedRules` rows |
 | event template attributes | `attributes: [- file_name: File Name]`; `type:` only when it is not `Text` | `[{name: file_name, label: File Name, type: Text}]`; an attribute called `name`, `label` or `type` keeps UAC's shape (6 of 163 rows on two live controllers) |
 | `run_if` / `skip_if` | `run_if: 1st business day of month` | the 37-field `runCriteria` record |
@@ -301,6 +303,14 @@ notification that attaches nothing hides its line counts. On a trigger,
 hides `dateNoun`, `dateQualifier`, `intervalStartingDate` …),
 `restriction: false` hides every `restriction*`, and `restrictedTimes: false`
 hides `enabledStart` / `enabledEnd`.
+
+On a custom day (and a calendar's `localCustomDays` row), `ctype` hides the
+date fields that type does not read: an Absolute Repeating Date hides
+`dayofweek`, `relfreq`, `nthAmount`, `nthType`; a Relative Repeating Date hides
+`day`, and `nthAmount` / `nthType` unless `relfreq: Nth`; a Single Date or List
+of Dates hides all of them. `adjustment: None` hides `adjustmentAmount` and
+`adjustmentType`. Measured on two live controllers, 119 custom days: every
+hidden field held the create value.
 
 `exitCodes: '0'` is left out too, under the mode a create fills it in — not
 because it is inactive, but because `rules/oncreate.yaml` writes the same value

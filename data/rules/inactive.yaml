@@ -192,6 +192,49 @@ rules:
     hide: [exitCodes]
     measured: "3,342 of 3,367"
 
+  # --- custom days: `ctype` selects which date fields are read ---
+  # Measured on two live controllers (119 custom days; the corpus has none).
+  # A field a ctype does not read holds the create value in every one:
+  # month Jan, day 1, dayofweek Sun, relfreq 1st, nthAmount 1, nthType Day.
+  # Single Date 10/10, List of Dates 59/59, Absolute Repeating Date 17/17
+  # (dayofweek, relfreq, nth*), Relative Repeating Date 33/33 (day).
+  # `nthAmount` / `nthType` are read only when relfreq is Nth: the other 31
+  # relative days hold 1 / Day, the two Nth ones hold 7 / Day and 15 /
+  # Business Day. `adjustment: None` leaves amount and type at 1 / Day in
+  # 112/112. Calendar `localCustomDays` rows agree: 17/17.
+  - &cd_single
+    when: {ctype: [Single Date]}
+    hide: [dateList, month, day, dayofweek, relfreq, nthAmount, nthType]
+    measured: "10/10"
+  - &cd_list
+    when: {ctype: [List of Dates]}
+    hide: [date, month, day, dayofweek, relfreq, nthAmount, nthType]
+    measured: "59/59"
+  - &cd_absolute
+    when: {ctype: [Absolute Repeating Date]}
+    hide: [date, dateList, dayofweek, relfreq, nthAmount, nthType]
+    measured: "17/17"
+  - &cd_relative
+    when: {ctype: [Relative Repeating Date]}
+    hide: [date, dateList, day]
+    measured: "33/33"
+  - &cd_not_nth
+    when:
+      ctype: [Relative Repeating Date]
+      relfreq: [1st, 2nd, 3rd, 4th, 5th, Last, Every, Last Day, Last Business Day]
+    hide: [nthAmount, nthType]
+    measured: "31/31"
+  - &cd_no_adjustment
+    when: {adjustment: [None]}
+    hide: [adjustmentAmount, adjustmentType]
+    measured: "112/112"
+  - {<<: *cd_single, path: localCustomDays}
+  - {<<: *cd_list, path: localCustomDays}
+  - {<<: *cd_absolute, path: localCustomDays}
+  - {<<: *cd_relative, path: localCustomDays}
+  - {<<: *cd_not_nth, path: localCustomDays}
+  - {<<: *cd_no_adjustment, path: localCustomDays}
+
 candidates:
   # --- from the AI 2.0 docs; measure before promoting ---
 
@@ -248,22 +291,3 @@ candidates:
     hide: [lfNthAmount]
     source: skills/create-task "lfNthAmount required when Nth Day"
   # (same shape for ls/ef NthAmount)
-
-  # --- custom days: `ctype` selects which fields are read. From uac_model's
-  # calendars.py, measured on ITS controller (79 custom days), not on this
-  # corpus, which has none: all 7 Single Date and all 23 List of Dates carry
-  # month: Jan + relfreq: 1st; all 17 Absolute Repeating Date carry
-  # dayofweek: Sun. Measure on a corpus with custom days before promoting.
-  - when: {ctype: [Single Date]}
-    hide: [dateList, month, day, relfreq, dayofweek, nthAmount]
-    source: uac_model calendars.py READS
-  - when: {ctype: [List of Dates]}
-    hide: [date, month, day, relfreq, dayofweek, nthAmount]
-    source: uac_model calendars.py READS
-  - when: {ctype: [Absolute Repeating Date]}
-    hide: [date, dateList, relfreq, dayofweek, nthAmount]
-    source: uac_model calendars.py READS
-  - when: {ctype: [Relative Repeating Date]}
-    hide: [date, dateList, day]
-    source: uac_model calendars.py READS
-

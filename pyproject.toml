@@ -13,6 +13,10 @@ dependencies = [
     "PyYAML>=6.0",
 ]
 
+[project.urls]
+Documentation = "https://uac-compose-cli.readthedocs.io/en/latest/"
+Source = "https://github.com/gomleksiz/uac-compose-cli"
+
 [dependency-groups]
 dev = ["pytest>=8.0", "ruff>=0.5", "mypy>=1.10", "types-PyYAML"]
 

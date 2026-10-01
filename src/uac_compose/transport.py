@@ -176,6 +176,16 @@ class Transport(Protocol):
         """What a UAC Bundle resolves to, or None when there is no such Bundle."""
         ...
 
+    def get_user(self, name: str) -> dict[str, Any] | None:
+        """The user called `name`, or None when the controller has no such user."""
+        ...
+
+    def create_user(self, user: dict[str, Any]) -> None:
+        """Create a user. `user` holds its password: never print or keep it."""
+        ...
+
+    def add_user_to_group(self, user: str, group: str) -> None: ...
+
 
 def in_parallel[T, R](
     items: Sequence[T],
@@ -377,18 +387,45 @@ class UacCli:
             )
             else []
         )
+        self._send(kind.group, verb, body, object_name(obj), *extra)
+
+    def _send(self, group: str, verb: str, body: dict[str, Any], name: str, *extra: str) -> None:
+        """`uac <group> <verb> --input FILE`; the file is gone when this returns."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "object.json"
             path.write_text(json.dumps(body))
-            done = self._call(kind.group, verb, *extra, "--input", str(path))
+            done = self._call(group, verb, *extra, "--input", str(path))
+        self._check(done, f"uac {group} {verb} {name!r}")
+
+    @staticmethod
+    def _check(done: subprocess.CompletedProcess[str], what: str) -> None:
         output = done.stdout or ""
-        ok = done.returncode == 0 and "error" not in output.lower()
-        if not ok:
+        if done.returncode != 0 or "error" in output.lower():
             said = (done.stderr or output).strip()
+            raise TransportError(f"{what}: {reason(said) or f'exit {done.returncode}'}")
+
+    def get_user(self, name: str) -> dict[str, Any] | None:
+        done = self._call("user", "get", f"username={name}")
+        text = (done.stdout or "").strip()
+        if not text.startswith("{"):
+            said = (done.stderr or text).strip()
+            if is_absent(said):
+                return None
             raise TransportError(
-                f"uac {kind.group} {verb} {object_name(obj)!r}: "
-                f"{reason(said) or f'exit {done.returncode}'}"
+                f"uac user get {name!r}: {reason(said) or f'exit {done.returncode}'}"
             )
+        try:
+            payload: Any = json.loads(text)
+        except ValueError as error:
+            raise TransportError(f"uac user get {name!r}: answer is not JSON") from error
+        return payload if isinstance(payload, dict) and payload.get("userName") else None
+
+    def create_user(self, user: dict[str, Any]) -> None:
+        self._send("user", "create", user, str(user.get("userName", "")))
+
+    def add_user_to_group(self, user: str, group: str) -> None:
+        done = self._call("user", "add-group", f"username={user}", f"groupname={group}")
+        self._check(done, f"uac user add-group {user!r} to {group!r}")
 
     def create(self, obj: dict[str, Any]) -> None:
         self._write("create", obj)
@@ -587,6 +624,23 @@ class FakeTransport:
             if row.get("name") == name:
                 return dict(row)
         return None
+
+    def get_user(self, name: str) -> dict[str, Any] | None:
+        for user in self.objects.get("users", []):
+            if user.get("userName") == name:
+                return dict(user)
+        return None
+
+    def create_user(self, user: dict[str, Any]) -> None:
+        if self.get_user(str(user.get("userName"))) is not None:
+            raise TransportError(f"uac user create {user.get('userName')!r}: exists already")
+        self.objects.setdefault("users", []).append(dict(user))
+        self.writes.append(("create_user", dict(user)))
+
+    def add_user_to_group(self, user: str, group: str) -> None:
+        if self.get_user(user) is None:
+            raise TransportError(f"uac user add-group {user!r}: no such user")
+        self.writes.append(("add_user_to_group", {"user": user, "group": group}))
 
     def export_template(self, name: str, path: Path) -> None:
         template = self.get_template(name)
