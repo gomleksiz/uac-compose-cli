@@ -82,6 +82,8 @@ KINDS: tuple[Kind, ...] = (
     Kind("peoplesoft_connections", "connection peoplesoft", routing="peoplesoftConnection"),
     Kind("sap_connections", "connection sap", routing="sapConnection"),
     Kind("email_connections", "connection email", routing="emailConnection", own_type=True),
+    # `webhook list` is complete and carries no type.
+    Kind("webhooks", "webhook", routing="webhook"),
 )
 KIND_BY_KEY = {k.key: k for k in KINDS}
 _KIND_BY_ROUTING = {k.routing: k for k in KINDS if k.routing}
@@ -185,6 +187,11 @@ class Transport(Protocol):
         ...
 
     def add_user_to_group(self, user: str, group: str) -> None: ...
+
+    def command(self, kind: Kind, name: str, verb: str, args: dict[str, str]) -> None:
+        """`uac <group> <verb>` on one object: what sets a field create and update
+        do not store (data/rules/commands.yaml), e.g. `webhook enable`."""
+        ...
 
 
 def in_parallel[T, R](
@@ -427,6 +434,26 @@ class UacCli:
         done = self._call("user", "add-group", f"username={user}", f"groupname={group}")
         self._check(done, f"uac user add-group {user!r} to {group!r}")
 
+    def command(self, kind: Kind, name: str, verb: str, args: dict[str, str]) -> None:
+        """Its answer is JSON that always holds `"errors"`, empty on success
+        (`webhook enable`: `{"success": true, "errors": ""}`), so `_check`'s
+        "error" in the text would fail every call."""
+        extra = [f"{k}={v}" for k, v in args.items()]
+        done = self._call(kind.group, verb, f"{name_arg(kind.group)}={name}", *extra)
+        what = f"uac {kind.group} {verb} {name!r}"
+        text = (done.stdout or "").strip()
+        try:
+            answer: Any = json.loads(text) if text.startswith("{") else None
+        except ValueError:
+            answer = None
+        if isinstance(answer, dict):
+            failed = answer.get("success") is False or bool(answer.get("errors"))
+            if done.returncode == 0 and not failed:
+                return
+            said = str(answer.get("errors") or answer.get("info") or done.stderr or text)
+            raise TransportError(f"{what}: {reason(said) or said}")
+        self._check(done, what)
+
     def create(self, obj: dict[str, Any]) -> None:
         self._write("create", obj)
 
@@ -536,6 +563,21 @@ def _fake_match(row: dict[str, Any], path: str, value: str) -> bool:
 # --- in memory, for tests ------------------------------------------------------
 
 
+def _as_stored(obj: dict[str, Any], before: dict[str, Any] | None) -> dict[str, Any]:
+    """What the controller keeps of a write: a field only a command sets
+    (data/rules/commands.yaml) is left at its `created` value, or as it was."""
+    from uac_compose import commands
+
+    stored = dict(obj)
+    for name, how in commands.rules().get(str(obj.get("type", "")), {}).items():
+        kept = before.get(name) if before is not None else how.get("created")
+        if kept is None:
+            stored.pop(name, None)
+        else:
+            stored[name] = kept
+    return stored
+
+
 @dataclass
 class FakeTransport:
     """A controller as dicts: kind key -> list of stamped objects."""
@@ -578,9 +620,31 @@ class FakeTransport:
                 return dict(obj)
         return None
 
+    def command(self, kind: Kind, name: str, verb: str, args: dict[str, str]) -> None:
+        """Does what the controller does: sets the field the command sets."""
+        from uac_compose import commands
+
+        for obj in self.objects.get(kind.key, []):
+            if object_name(obj) != name:
+                continue
+            for field_name, how in commands.rules().get(str(obj.get("type")), {}).items():
+                if verb in (how.get("values") or {}).values():
+                    obj[field_name] = next(v for v, c in how["values"].items() if c == verb)
+                elif verb == how.get("command"):
+                    for first, value in (how.get("while") or {}).items():
+                        if obj.get(first) != value:  # as the controller refuses it
+                            raise TransportError(
+                                f"{kind.group} {verb} {name!r}: HTTP 400: cannot be executed "
+                                f"while {first} is {obj.get(first)!r}"
+                            )
+                    obj[field_name] = args[how["argument"]]
+            self.writes.append(("command", {"verb": verb, "name": name, **args}))
+            return
+        raise TransportError(f"{kind.group} {verb} {name!r}: no such object")
+
     def create(self, obj: dict[str, Any]) -> None:
         kind = kind_for_type(str(obj.get("type", "")))
-        self.objects.setdefault(kind.key, []).append(dict(obj))
+        self.objects.setdefault(kind.key, []).append(_as_stored(obj, None))
         self.writes.append(("create", dict(obj)))
 
     def update(self, obj: dict[str, Any]) -> None:
@@ -593,7 +657,8 @@ class FakeTransport:
             if obj.get("sysId")
             else (lambda o: object_name(o) == object_name(obj))
         )
-        rows[:] = [o for o in rows if not same(o)] + [dict(obj)]
+        before = next((o for o in rows if same(o)), None)
+        rows[:] = [o for o in rows if not same(o)] + [_as_stored(obj, before)]
         self.writes.append(("update", dict(obj)))
 
     def workflows_of(self, task: str) -> list[str]:

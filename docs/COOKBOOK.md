@@ -262,6 +262,23 @@ Only the task in each step changes. The workflow keeps its shape.
 
 ---
 
+## 5a. Webhooks
+
+**Disable every webhook that launches a task**
+
+```yaml
+steps:
+  - update webhook: '*'
+    where: {action: Launch Task}
+    set: {status: Disabled}
+```
+
+`status` and `executionUser` are set by the controller's own commands after
+the update (`webhook disable`, `webhook assign-execution-user`); the plan
+says which.
+
+---
+
 ## 6. Rename
 
 **Rename one task**
@@ -472,6 +489,35 @@ uac-compose import nightly.uac.yaml -e ~/.uac/compose/source/extensions -p targe
 
 `-w` brings what the workflow needs; `-d` also saves the Universal
 Extensions it uses, so `import -e` can install them on the target.
+
+## 11. Share on the Composer Hub
+
+[Composer Hub](https://composer.husey.in) keeps bundles like PyPI keeps
+packages: a name, version numbers, and a SHA-256 for each file. Download is
+free; publishing needs an account (an admin approves it) and an API token.
+
+```bash
+# install: pip-style references, dry run first
+uac-compose import -n hub:nightly-uac-backup==1.0.0 --sha256 05d9c27d...
+uac-compose import -n 'hub:nightly-uac-backup>=1.0,<2'     # quote < and > in a shell
+uac-compose import -n https://composer.husey.in/d/sla-late-alert==1.0.0
+
+# publish: the token is in UAC_COMPOSE_HUB_TOKEN, or when it is not set,
+# in ~/.config/uac-compose/hub-token (chmod 600)
+uac-compose publish nightly.uac.yaml nightly-transfer==1.0 \
+    -d "Moves the nightly files and tells the team." --tag "file transfer" \
+    --require "An SFTP credential named Partner SFTP"
+# the hub lists the extensions the file uses by itself; --require adds the rest
+uac-compose publish nightly.uac.yaml nightly-transfer==1.1 --draft
+```
+
+- A published version **never changes**, and a deleted number is never used
+  again: `name==1.0` always names one file. Publish a new number instead.
+- The download is checked against the hub's SHA-256; `--sha256` also pins it
+  (like pip's `--require-hashes`), so a changed hub cannot change your file.
+- `publish` refuses a file with a secret before it uploads, as `import` does.
+- `--draft` uploads a version only you see; check it on the site, then publish
+  it there.
 
 ---
 

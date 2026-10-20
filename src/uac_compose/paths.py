@@ -17,7 +17,19 @@ class ConfigError(Exception):
 
 
 def data_root() -> Path:
-    """The read-only seed data: `uac-compose/_data` in a wheel, `data/` in a checkout."""
+    """The read-only seed data: `UAC_COMPOSE_DATA`, else `uac-compose/_data` in a
+    wheel, else `data/` in a checkout.
+
+    The variable is for a package that is imported from a zip (a Universal
+    Extension): its `_data` is not a folder there, so the caller copies it out
+    and names the copy.
+    """
+    env = os.environ.get("UAC_COMPOSE_DATA")
+    if env:
+        given = Path(env).expanduser()
+        if given.is_dir():
+            return given
+        raise ConfigError(f"UAC_COMPOSE_DATA={env}: no such folder")
     installed = _PACKAGE / "_data"
     if installed.is_dir():
         return installed

@@ -107,9 +107,10 @@ def test_export_says_what_it_reads_on_stderr(fake: FakeTransport) -> None:
     lines = result.stderr.splitlines()
     assert lines[0].startswith("profile ")
     assert lines[0].endswith(": reading 1 object(s), up to 4 at a time")
-    assert re.fullmatch(r"\[1/1\] taskUnix 'T'  \d+\.\ds", lines[1])
-    assert re.fullmatch(r"read 1 object\(s\) in \d+\.\ds", lines[2])
-    assert len(lines) == 3
+    assert lines[1] == "   reading the controller's extensions..."
+    assert re.fullmatch(r"\[1/1\] taskUnix 'T'  \d+\.\ds", lines[2])
+    assert re.fullmatch(r"read 1 object\(s\) in \d+\.\ds", lines[3])
+    assert len(lines) == 4
 
 
 def test_import_says_what_it_reads_and_writes_on_stderr(
@@ -126,7 +127,8 @@ def test_import_says_what_it_reads_and_writes_on_stderr(
     assert result.exit_code == 0, result.output
     assert "created  tasks/New" in result.stdout  # the decisions stay on stdout
     lines = [re.sub(r"  \d+\.\ds$", "", line) for line in result.stderr.splitlines()]
-    assert lines[0].endswith(f"{out}, 2 object(s)")
+    assert lines[0].endswith(f"profile default: {out}")
+    assert "   checking 2 object(s) against the rules" in lines
     assert "reading 2 object(s) from the controller, up to 2 at a time" in lines
     # Read two at a time: they may answer in either order, a line each.
     reads = [line for line in lines if re.match(r"\[\d/2\] tasks/", line)]
@@ -134,6 +136,57 @@ def test_import_says_what_it_reads_and_writes_on_stderr(
     assert sorted(line[6:] for line in reads) == ["tasks/New", "tasks/T"]
     assert "[1/1] created  tasks/New" in result.stdout
     assert re.search(r"wrote 1 object\(s\); \d+\.\ds in all", result.stderr)
+
+
+AWS = {
+    "name": "CS AWS S3",
+    "fields": [
+        {"name": "action", "fieldMapping": "Choice Field 3"},
+        {"name": "sourcefile", "fieldMapping": "Text Field 1"},
+    ],
+}
+UNIVERSAL_TASK = {
+    "type": "taskUniversal",
+    "name": "U",
+    "sysId": "2",
+    "agent": "linux-01",
+    "template": "CS AWS S3",
+    "choiceField3": {"label": "Action", "name": "action", "value": "upload-file"},
+    "textField1": {"label": "Sourcefile", "name": "sourcefile", "value": "a.txt"},
+}
+
+
+def test_export_learns_the_extensions_of_a_profile_never_learned(
+    fake: FakeTransport, tmp_path: Path
+) -> None:
+    """No `learn` was run: export reads the map itself and writes names, not slots."""
+    fake.raw["universal-template"] = [AWS]
+    fake.objects["tasks"].append(dict(UNIVERSAL_TASK))
+    out = tmp_path / "u.uac.yaml"
+    code, text = _run("export", "U", "-t", "task", "--out", str(out))
+    assert code == 0, text
+    written = out.read_text()
+    assert "action: upload-file" in written and "choiceField3" not in written
+    saved = tmp_path / "ws" / "default" / "templates" / "_extensions.json"
+    assert "CS AWS S3" in saved.read_text()  # kept for the next run
+
+
+def test_import_learns_the_extensions_before_it_compiles(
+    fake: FakeTransport, tmp_path: Path
+) -> None:
+    """A named parameter becomes its slot on a profile never learned."""
+    fake.raw["universal-template"] = [AWS]
+    out = tmp_path / "u.uac.yaml"
+    out.write_text(
+        "tasks:\n"
+        "  U: {type: Universal, template: CS AWS S3, agent: linux-01,"
+        " action: upload-file, sourcefile: a.txt}\n"
+    )
+    code, text = _run("import", str(out))
+    assert code == 0, text
+    created = [obj for verb, obj in fake.writes if verb == "create"]
+    assert created[0]["choiceField3"]["value"] == "upload-file"
+    assert "action" not in created[0]
 
 
 def test_export_parallel_must_be_at_least_one(fake: FakeTransport) -> None:
@@ -398,8 +451,30 @@ def test_plain_uac_compose_says_the_environment_variables() -> None:
         for name in re.findall(r"environ\.get\(\"(UAC_COMPOSE_\w+)\"", path.read_text())
     }
     read.discard("UAC_COMPOSE_CORPUS")  # the test corpus, for `make test-corpus`
-    assert read == {"UAC_COMPOSE_PROFILE", "UAC_COMPOSE_WORKSPACE", "UAC_COMPOSE_UAC"}
+    assert read == {
+        "UAC_COMPOSE_PROFILE",
+        "UAC_COMPOSE_WORKSPACE",
+        "UAC_COMPOSE_UAC",
+        "UAC_COMPOSE_DATA",
+        "UAC_COMPOSE_HUB_URL",
+        "UAC_COMPOSE_HUB_TOKEN",
+    }
     _, text = _run()
     assert "Environment variables:" in text
     for name in read:
         assert name in text
+
+
+def test_the_data_folder_can_be_named(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A package imported from a zip cannot read its own `_data`: the caller
+    copies it out and names the copy."""
+    from uac_compose.paths import ConfigError, data_root
+
+    shipped = data_root()
+    monkeypatch.setenv("UAC_COMPOSE_DATA", str(tmp_path))
+    assert data_root() == tmp_path
+    monkeypatch.setenv("UAC_COMPOSE_DATA", str(tmp_path / "missing"))
+    with pytest.raises(ConfigError, match="no such folder"):
+        data_root()
+    monkeypatch.delenv("UAC_COMPOSE_DATA")
+    assert data_root() == shipped

@@ -1,4 +1,4 @@
-"""Add agent clusters and user groups to data/registry/types.yaml.
+"""Add agent clusters, user groups and webhooks to data/registry/types.yaml.
 
 Throwaway, like distill_docs.py. The registry is generated in uac_model from
 data/openapi.json (src/uac_ai/model/registry.py); these kinds were never in
@@ -33,6 +33,7 @@ NEW: dict[str, tuple[str, str, str]] = {
     ),
     "IbmiAgentClusterWsData": ("agent_cluster", "ibmiAgentCluster", "ops_ibmi_agent_cluster"),
     "UserGroupWsData": ("user_group", "userGroup", "ops_user_group"),
+    "WebhookWsData": ("webhook", "webhook", "ops_webhook"),
 }
 
 

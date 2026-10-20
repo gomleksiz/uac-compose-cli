@@ -53,3 +53,6 @@ lands**, so a run that is stopped or killed keeps what it already downloaded
 and the next run carries on from there. And one folder takes one freeze at a
 time: a second run into the same folder is refused, because each run holds the
 manifest in memory and the later save would drop the earlier one's rows.
+
+A bundle on the [Composer Hub](hub.md) lists the extensions it needs at the
+top of its page, so you know what to freeze and install before the import.

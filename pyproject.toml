@@ -4,14 +4,19 @@ build-backend = "hatchling.build"
 
 [project]
 name = "uac-compose"
-version = "0.2.2"
+version = "0.3.0"
 description = "Export Stonebranch UAC definitions to readable .uac.yaml bundles and import them back"
 requires-python = ">=3.12"
 dependencies = [
     "click>=8.1",
-    "pydantic>=2.7",
     "PyYAML>=6.0",
 ]
+
+[project.optional-dependencies]
+# Talk to the controller's REST API in this process (`ApiTransport`), with no
+# `uac` CLI installed: what a Universal Extension needs. Only the client's
+# generic get/post/put/delete are used, the same since 0.4.
+api = ["uac-api>=0.4"]
 
 [project.urls]
 Documentation = "https://uac-compose-cli.readthedocs.io/en/latest/"
@@ -46,6 +51,11 @@ python_version = "3.12"
 packages = ["uac_compose"]
 mypy_path = "src"
 strict = true
+
+# `uac-api` (the optional `api` extra) ships no type information.
+[[tool.mypy.overrides]]
+module = ["uac_api", "uac_api.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

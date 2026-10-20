@@ -145,6 +145,7 @@ SECTIONS = (
     "event_templates",
     "tasks",
     "triggers",
+    "webhooks",  # a webhook launches a task: after tasks
 )
 TEMPLATES = "templates"
 

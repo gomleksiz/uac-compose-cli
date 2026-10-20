@@ -254,6 +254,14 @@ _NO_FAILURE_FROM = ("taskWorkflow", "taskSleep", "taskManual")
 _APPROVAL_ONLY = ("Approved", "Approval Required")
 
 
+def rung_commands(p: Planned) -> list[Finding]:
+    """A field only a command sets takes only the values a command sets
+    (data/rules/commands.yaml): `status: Paused` is refused before any write."""
+    from uac_compose import commands
+
+    return [_error(p, message) for message in commands.unknown_values(p.obj)]
+
+
 def rung_edges(p: Planned, type_of: dict[str, str]) -> list[Finding]:
     """`type_of`: task name -> type, for the members this run can see."""
     out = []
@@ -295,6 +303,7 @@ def static(
             rung_formats,
             rung_exclusive,
             rung_vocabularies,
+            rung_commands,
         ):
             out += rung(p)
         out += rung_edges(p, type_of)

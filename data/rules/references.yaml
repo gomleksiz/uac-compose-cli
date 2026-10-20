@@ -47,6 +47,8 @@ fields:
   # a trigger's launched tasks and watched monitor
   tasks: tasks
   taskMonitor: tasks
+  # The user a webhook's launched task runs as (`webhook assign-execution-user`).
+  executionUser: users
 
 # `connection` names a different kind per task type.
 by_type:
@@ -61,6 +63,12 @@ by_type:
     userGroup: user_groups
   manager:
     userGroup: users
+  # The task a webhook launches (action: Launch Task). Its `event` names an
+  # event template, but on a test controller all 30 webhooks name a built-in event
+  # (uac_task_status_changed...) that no event template list holds, so it is
+  # not checked as a reference.
+  task:
+    webhook: tasks
   # A Universal Monitor task watches one Universal task, which the
   # controller needs first: "Invalid task universal: <name>" (measured live on
   # ps1). Corpus: 11 of 88 Universal Monitor tasks name one.

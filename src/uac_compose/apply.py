@@ -33,7 +33,7 @@ from datetime import datetime
 from functools import cache
 from typing import Any
 
-from uac_compose import emit, importer, references, validate, where, yamlio
+from uac_compose import commands, emit, importer, references, validate, where, yamlio
 from uac_compose.compile import CompileError, Planned, apply_like, compile_object
 from uac_compose.core.extensions import ExtensionMap
 from uac_compose.core.normalize import normalize
@@ -422,6 +422,8 @@ class Change:
     """`create user`: the groups to add the user to, after it is made."""
     password_env: str = ""
     """`create user`: read again when the write runs; the password is never kept."""
+    commands: list[Any] = field(default_factory=list)
+    """Run after the update: fields only a command sets (`webhook enable`)."""
 
 
 class Planner:
@@ -771,7 +773,11 @@ class Planner:
                 self.origin.pop((step.kind.key, name), None)
                 self.origin[(step.kind.key, new)] = origin
             self._put(step.kind, new, payload)
-        return Change(step, step.kind, name, action, new, payload, differences + lines, origin)
+        needed = commands.needed(obj, stored) if payload is not None else []
+        lines += [c.note(step.kind.group) for c in needed]
+        change = Change(step, step.kind, name, action, new, payload, differences + lines, origin)
+        change.commands = needed
+        return change
 
     def _as_bundle(
         self,
@@ -1058,6 +1064,10 @@ def run(
             else:
                 assert change.payload is not None
                 transport.update(change.payload)
+                for command in change.commands:
+                    transport.command(
+                        change.kind, change.new_name or change.name, command.verb, command.args
+                    )
         except TransportError as error:
             ran = f"{n - 1} of {len(todo)} change(s) ran" if n > 1 else "nothing ran"
             raise ApplyError(

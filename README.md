@@ -18,6 +18,8 @@ uac-compose export '*Sleep*'                        # wildcards: every kind, cas
 uac-compose export '*Sleep*' -t linux -w            # only Linux/Unix tasks, and what they need
 uac-compose export -E '^DB_.*_v[0-9]+$' -t variable # a regular expression
 uac-compose import nightly.uac.yaml --extensions ~/.uac/compose/default/extensions
+uac-compose import -n hub:nightly-transfer==1.0 --sha256 05d9c27d...  # from the Composer Hub
+uac-compose publish nightly.uac.yaml nightly-transfer==1.1            # share it there
 ```
 
 New to it? Start with the [cookbook](docs/COOKBOOK.md).
@@ -25,7 +27,7 @@ New to it? Start with the [cookbook](docs/COOKBOOK.md).
 ## Install
 
 ```bash
-pip install uac_compose-0.2.2-py3-none-any.whl     # Python 3.12 or newer
+pip install uac_compose-0.3.0-py3-none-any.whl     # Python 3.12 or newer
 ```
 
 uac-compose runs the `uac` CLI for every call to the controller. It finds
@@ -50,6 +52,7 @@ with `.readthedocs.yaml`):
 | [Filters and `find`](docs/guide/filters.md) | `-W` / `where:` tests, regular expressions, the `find` session |
 | [Change files: `apply`](docs/guide/apply.md) | steps, action rows, rows in bundle syntax, backups, new users |
 | [Universal Extensions](docs/guide/extensions.md) | `freeze` and moving Universal tasks |
+| [Composer Hub](docs/guide/hub.md) | install a bundle by name and version; `publish` your own |
 | [File format](docs/FORMAT.md) · [Specification](docs/SPEC.md) | the reference |
 
 To read the site on your machine:
@@ -63,7 +66,7 @@ For development: `docs/SPEC.md`, `docs/DEVELOPMENT-PLAN.md` (milestones and
 acceptance tests), `docs/FORMAT.md` and `docs/LESSONS.md` (the traps `uac-ai`
 already fell into).
 
-**Status:** all eight milestones done, plus `export --bundle` and the reworked compact format (flat fields, `sla:`, richer `like:`, extension parameters by name). `make check-all` green.
+**Status:** all eight milestones done, plus `export --bundle` and the reworked compact format (flat fields, `sla:`, richer `like:`, extension parameters by name), webhooks, library use, and the Composer Hub (`publish`, `hub:` references). `make check-all` green.
 
 ## What is here
 

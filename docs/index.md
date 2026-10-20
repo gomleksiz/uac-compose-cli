@@ -14,6 +14,8 @@ uac-compose import nightly.uac.yaml --update        # reconcile what differs
 uac-compose freeze nightly.uac.yaml                 # save the Universal Extensions it needs
 uac-compose find -t task                            # build and test a filter, one line at a time
 uac-compose apply changes.apply.yaml -n             # the plan of a change file; nothing is written
+uac-compose import -n hub:nightly-transfer==1.0     # a bundle from the Composer Hub, SHA-256 checked
+uac-compose publish nightly.uac.yaml nightly-transfer==1.1  # share a bundle on the hub
 ```
 
 ## The commands
@@ -27,6 +29,7 @@ uac-compose apply changes.apply.yaml -n             # the plan of a change file;
 | `show` | show the parameters of a Universal Extension on a controller |
 | `apply` | run a change file: update, rename and delete objects in place; create users |
 | `find` | build and test a filter for a change file, interactively |
+| `publish` | share a bundle on the Composer Hub, as `NAME==VERSION` |
 
 Every command is described in the [command reference](reference/commands.md).
 
@@ -37,6 +40,7 @@ Every command is described in the [command reference](reference/commands.md).
 - To copy objects to another controller: [export and import](guide/export-import.md).
 - To change objects where they are: [change files](guide/apply.md).
 - To select objects: [filters and `find`](guide/filters.md).
+- To share bundles, or install one by name and version: the [Composer Hub](guide/hub.md).
 - To write or read a bundle by hand: the [file format](FORMAT.md).
 
 !!! warning "Always look first"

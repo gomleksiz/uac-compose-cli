@@ -23,7 +23,7 @@ from uac_compose.core.normalize import normalize
 from uac_compose.core.simplify import simplify
 from uac_compose.core.templates import TemplateSet
 from uac_compose.paths import data_root
-from uac_compose.transport import Transport, in_parallel
+from uac_compose.transport import Transport, in_parallel, kind_for_type, object_name
 
 Echo = Callable[[str], None]
 
@@ -264,8 +264,9 @@ def decide(
     services: list[str] | None = None,
 ) -> Decision:
     if stored is None:
-        return Decision(planned, "create")
+        return Decision(planned, "create", notes=_command_notes(planned, None))
     differences, notes = split_unstorable(compare(planned.obj, stored, ext), stored)
+    notes += _command_notes(planned, stored)
     if not differences:
         return Decision(planned, "reuse", stored=stored, notes=notes)
     if planned.create_only:  # before --update: a seed's drift is not drift
@@ -437,6 +438,25 @@ def update_payload(decision: Decision, templates: TemplateSet) -> dict[str, Any]
     return payload
 
 
+def _command_notes(planned: Planned, stored: dict[str, Any] | None) -> list[str]:
+    from uac_compose import commands
+
+    group = kind_for_type(str(planned.obj.get("type", ""))).group
+    return [c.note(group) for c in commands.needed(planned.obj, stored)]
+
+
+def run_commands(
+    obj: dict[str, Any], stored: dict[str, Any] | None, transport: Transport, echo: Echo
+) -> None:
+    """After a write: set the fields create and update do not store."""
+    from uac_compose import commands
+
+    kind = kind_for_type(str(obj.get("type", "")))
+    for c in commands.needed(obj, stored):
+        transport.command(kind, object_name(obj), c.verb, c.args)
+        echo(f"   {kind.key}/{object_name(obj)}: {c.field_name} {c.value} ({kind.group} {c.verb})")
+
+
 def write(
     decisions: list[Decision], transport: Transport, templates: TemplateSet, echo: Echo
 ) -> None:
@@ -454,6 +474,7 @@ def write(
             transport.update(update_payload(d, templates))
             verb = "renamed " if d.action == "rename" else "updated "
         echo(f"[{n}/{len(writes)}] {verb} {d.planned.label}  {time.monotonic() - at:.1f}s")
+        run_commands(d.planned.obj, d.stored, transport, echo)
 
 
 def decide_all(

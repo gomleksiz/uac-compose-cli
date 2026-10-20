@@ -111,12 +111,18 @@ class TemplateSet:
     """
 
     def __init__(
-        self, release: str, root: Path | None = None, extensions_path: Path | None = None
+        self,
+        release: str,
+        root: Path | None = None,
+        extensions_path: Path | None = None,
+        extensions: ExtensionMap | None = None,
     ) -> None:
         self.release = release
         self.root = (root or data_root() / "templates") / release
         self.extensions_path = extensions_path or (self.root / "_extensions.json")
         self._cache: dict[str, dict[str, Any]] = {}
+        if extensions is not None:  # a map read live just now wins over the file
+            self.__dict__["extensions"] = extensions
 
     def get(self, type_name: str) -> dict[str, Any]:
         """The type's template, or `{}` (safe: nothing matches, nothing is dropped)."""

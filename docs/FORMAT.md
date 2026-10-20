@@ -47,6 +47,7 @@ scripts:               # key is scriptName
 event_templates:
 tasks:                 # workflows are tasks too
 triggers:
+webhooks:              # after tasks: a webhook launches one
 templates:             # copied from by like:, never created
 create_only: [variables, credentials]   # sections to create if missing, never overwrite
 ```
@@ -289,8 +290,8 @@ aliases are written raw.
 
 An action row is written with **what it is** first: `status`, then
 `operation`. A Universal task's extension parameters are written by name, not
-as `choiceField3` — `uac-compose learn` knows the mapping, and both spellings compile
-to the same object.
+as `choiceField3` — each command reads the mapping from the controller when it
+connects, and both spellings compile to the same object.
 
 ## 6. Inactive fields
 
@@ -371,6 +372,39 @@ tasks:
   exported object names.
 - `import --update` only rewrites objects inside the file's own services,
   or in none.
+
+## 8a. Webhooks
+
+```yaml
+webhooks:
+  Notify Ops:
+    event: uac_task_status_changed     # the controller writes the label
+    action: Launch Task
+    task: Open Incident
+    filter:
+      criteria:
+      - {name: status, operator: EQUALS, value: Failed}
+    executionUser: ops
+    status: Enabled
+```
+
+`status` and `executionUser` are not stored by create or update: only
+`webhook enable` / `disable` and `webhook assign-execution-user` set them
+(`data/rules/commands.yaml`, measured live). Import and apply write the
+webhook, then run those commands, and say so first:
+
+```
+create   webhooks/Notify Ops
+   ~ executionUser: ops is set by `webhook assign-execution-user` after the write
+   ~ status: Enabled is set by `webhook enable` after the write
+```
+
+The controller assigns an execution user only to a disabled webhook, so an
+enabled one is disabled, given its user, and enabled again. A new webhook is
+Disabled; `status` is always written on export, so a promotion carries
+Disabled too. Assigning a user may need that user's password for a caller
+with less right; a file never holds one, so the controller's refusal is then
+the error.
 
 ## 9. Where a file comes from
 

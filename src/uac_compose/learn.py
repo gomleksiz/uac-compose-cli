@@ -95,8 +95,11 @@ class Workspace:
         stat = path.stat()
         return _by_name(path, stat.st_mtime_ns, stat.st_size)
 
-    def template_set(self) -> TemplateSet:
+    def template_set(self, extensions: ExtensionMap | None = None) -> TemplateSet:
         """The shipped defaults, read with this profile's extension map.
+
+        Pass `extensions` (from `current_extensions`) to read with the map the
+        controller has now, not the one saved on the last run.
 
         The defaults are deliberately **not** this controller's: they are the
         same on every controller, so a field left out of a file means the same
@@ -108,6 +111,7 @@ class Workspace:
         return TemplateSet(
             shipped_release(release),
             extensions_path=self.templates(release or "").joinpath("_extensions.json"),
+            extensions=extensions,
         )
 
     def envelopes(self) -> list[ObjectEnvelope]:
@@ -216,14 +220,18 @@ def current_extensions(ws: Workspace, transport: Transport) -> ExtensionMap:
     time. Measured live: one such extension produced 17 error lines, none of
     which said the map was out of date.
 
+    Every command that reads or writes extension tasks calls this first, as
+    Ansible gathers facts on each connect. A profile never learned gets its
+    map here too (saved where `template_set` looks for it): without one,
+    export wrote raw `choiceField8` slots and import compiled named
+    parameters as unknown fields.
+
     One `universal-template list`: 1.8s for 30 extensions, 4.8s for 276.
     """
     merged = extension_map(ws, transport)  # the same merge learn does, re-read
-    release = ws.release()
-    if release:
-        target = ws.templates(release)
-        if target.is_dir():
-            merged.save(target / "_extensions.json")
+    target = ws.templates(ws.release() or "")
+    target.mkdir(parents=True, exist_ok=True)
+    merged.save(target / "_extensions.json")
     return merged
 
 

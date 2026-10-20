@@ -15363,6 +15363,86 @@ types:
       - date
       - description
     type: virtualResource
+  webhook:
+    export_table: ops_webhook
+    field_types:
+      action: string
+      credentials: string
+      description: string
+      disabledBy: string
+      disabledTime: string
+      enabledBy: string
+      enabledTime: string
+      eventBusinessServiceCriteria: string
+      excludeRelated: boolean
+      executionUser: string
+      exportReleaseLevel: string
+      exportTable: string
+      httpAuth: string
+      name: string
+      retainSysIds: boolean
+      status: string
+      statusDescription: string
+      sysId: string
+      task: string
+      url: string
+    fields:
+    - action
+    - credentials
+    - description
+    - disabledBy
+    - disabledTime
+    - enabledBy
+    - enabledTime
+    - event
+    - eventBusinessServiceCriteria
+    - eventBusinessServices
+    - excludeRelated
+    - executionUser
+    - exportReleaseLevel
+    - exportTable
+    - filter
+    - httpAuth
+    - httpHeaders
+    - name
+    - opswiseGroups
+    - retainSysIds
+    - status
+    - statusDescription
+    - sysId
+    - task
+    - url
+    - urlParameters
+    kind: webhook
+    observed_only: false
+    parents: []
+    schema_name: WebhookWsData
+    sub_fields:
+      event:
+      - label
+      - value
+      filter:
+      - criteria
+      - logicalOperator
+      filter.criteria:
+      - end
+      - name
+      - operator
+      - start
+      - type
+      - value
+      - values
+      filter.criteria.end:
+      - value
+      filter.criteria.start:
+      - value
+      httpHeaders:
+      - name
+      - value
+      urlParameters:
+      - name
+      - value
+    type: webhook
   windowsAgentCluster:
     export_table: ops_windows_agent_cluster
     field_types:

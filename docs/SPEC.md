@@ -179,6 +179,22 @@ Rules that each cost a bug in `uac-ai`:
 - `business-service create` needs `name=` as a positional arg beside `--input`.
 - Strip the routing key from every payload before writing.
 
+`ApiTransport` (`transport_api.py`, extra `uac-compose[api]`) makes the same
+calls as REST through `uac_api`, in the process, for a Universal Extension:
+- One table of `uac` group → `/resources/<name>`; `list` is `/list`,
+  `list-advanced` is `/listadv`. The plain `list` of tasks, triggers and
+  variables is a **POST** of `{}`; a GET answers nothing.
+- Query values are URL-encoded here: `uac_api` joins `key=value` as given.
+- `retainSysIds: "true"` in the body where the CLI sends it: every create, and
+  the update of a task, script, calendar or user group.
+- Absent on HTTP 404 or "does not exist"; anything else raises with
+  `HTTP <status>: <the controller's text>`.
+- Measured on a test controller: all 19 groups list the same rows, and exports through
+  both transports are byte-identical (`test_live_api_reads_what_the_cli_reads`).
+
+`service.py` holds export, import and apply as functions (`say` / `out`
+callbacks, `ServiceError`, no prompts); `cli.py` is a thin wrapper over it.
+
 ## 4. `uac-compose learn`
 
 1. **Fetch** each kind into `cache/`. Criterion is "does the call return
@@ -195,7 +211,11 @@ Rules that each cost a bug in `uac-ai`:
    `references.json`. Identity fields only; never `runtimeUser`.
 3. **Extension map**: `uac universal-template list` gives each parameter's
    slot (`"Choice Field 3"→choiceField3`), label, choices. Merge observed usage
-   over it.
+   over it. This step also runs on **every connect**: `export`, `import`
+   (before it compiles the file, and again after `--extensions` installs),
+   `apply` and `freeze FILE` re-read it and save it, also for a profile that
+   was never learned (`templates/_extensions.json`). Without it, export wrote
+   raw slots and import compiled named parameters as unknown fields.
 4. **Derive templates** for this profile (§5.4).
 5. **Self-check**: round trip every cached object, print `N/N ok` and failures
    by type. Nothing is written on failure except the report.

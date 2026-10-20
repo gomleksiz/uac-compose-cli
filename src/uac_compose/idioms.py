@@ -41,6 +41,9 @@ LABELLED = (
     "customChoiceField1",
     "eventTemplate",
     "templateEventTemplate",
+    # A webhook's event. Measured on a test controller: created with `{value: ...}` only,
+    # it comes back with the controller's label. All 30 webhooks there have one.
+    "event",
 )
 
 SCALAR_PAIRS = ("resPriority",)

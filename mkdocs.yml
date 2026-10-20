@@ -40,6 +40,7 @@ nav:
       - Filters and find: guide/filters.md
       - "Change files: apply": guide/apply.md
       - Universal Extensions: guide/extensions.md
+      - "Share bundles: Composer Hub": guide/hub.md
   - Cookbook: COOKBOOK.md
   - Reference:
       - Commands: reference/commands.md

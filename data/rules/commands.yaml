@@ -1,0 +1,36 @@
+# Fields that create and update do not store: only a command of their own sets
+# them. Import and apply run the command after the write, when the file states
+# the field and the controller does not hold that value yet.
+#
+# Measured live on a test controller (8.1.0.0), 2026-10-19, with test webhooks created,
+# read back and deleted:
+# - created with `status: Enabled`, a webhook is Disabled; an update with it
+#   changes nothing. `webhook enable` / `disable` set it, and enabling an
+#   enabled webhook is not an error.
+# - created or updated with `executionUser`, it stays null.
+#   `webhook assign-execution-user` with only `username` set it (the caller
+#   was ops.admin; a caller with less right may be asked for the password,
+#   which a bundle never holds -- the controller's refusal is then the error).
+# - assign-execution-user on an enabled webhook is refused: "cannot be
+#   executed because the webhook ... is enabled". So it runs while Disabled,
+#   and the webhook is enabled again afterwards when it should be.
+#
+# Fields are set in the order written here.
+#
+#   <type>:
+#     <field>:
+#       command: <command>               # the value goes in `argument`
+#       argument: <name>
+#       while: {<field>: <value>}        # set that first; it goes back after
+#     <field>:
+#       values: {<value>: <command>}     # the value picks the command
+#       created: <value>                 # what a create leaves it at
+
+webhook:
+  executionUser:
+    command: assign-execution-user
+    argument: username
+    while: {status: Disabled}
+  status:
+    values: {Enabled: enable, Disabled: disable}
+    created: Disabled

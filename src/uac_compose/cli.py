@@ -1,11 +1,9 @@
-"""The commands: learn, export, import, freeze, show, apply, find."""
+"""The commands: learn, export, import, freeze, show, apply, find, publish."""
 
 from __future__ import annotations
 
 import contextlib
-import json
 import sys
-import time
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -30,6 +28,12 @@ Environment variables:
                          (default: ~/.uac/compose)
   UAC_COMPOSE_UAC        the full path to the uac CLI, when it is not on PATH
                          (e.g. C:\\Tools\\uac\\uac.exe)
+  UAC_COMPOSE_DATA       the shipped data folder, when the package cannot
+                         read its own (imported from a zip)
+  UAC_COMPOSE_HUB_URL    the Composer Hub for hub: references and publish
+                         (default: https://composer.husey.in)
+  UAC_COMPOSE_HUB_TOKEN  the hub API token for publish; it wins over the
+                         file ~/.config/uac-compose/hub-token
 """
 
 
@@ -196,128 +200,56 @@ def export(
     the names come from a live list of the controller, narrowed by -t
     (a kind like task or credential, or a type like linux or timer).
     """
-    from uac_compose import emit
-    from uac_compose.emit import LookupError_, export_text
+    from uac_compose import service
     from uac_compose.learn import Workspace
-    from uac_compose.transport import TransportError, UacCli
+    from uac_compose.transport import UacCli
 
-    if uac_bundle and names:
-        raise click.ClickException("name objects or pass --bundle, not both")
-    if uac_bundle and with_members:
-        raise click.ClickException(
-            "--bundle already resolves what the objects need (the controller's own "
-            "followReferences rule); --with-members would second-guess it"
-        )
-    tests = []
-    if wheres:
-        from uac_compose import where
-
-        if uac_bundle:
-            raise click.ClickException("--where selects objects; a --bundle already names them")
-        try:
-            tests = where.parse_terms(list(wheres))
-        except where.WhereError as error:
-            raise click.ClickException(str(error)) from error
-        names = names or ("*",)
-    if not uac_bundle and not names:
-        raise click.ClickException("name something to export, or pass --bundle")
     name = profile_name(profile)
     ws = Workspace(profile_dir(profile))
-    report: list[str] = []
-    needed: list[str] = []
 
     # Progress goes to stderr: without --out the file itself is on stdout.
     def say(line: str) -> None:
         click.echo(line, err=True)
 
-    # With --where every name goes through the list, so every match is tested.
-    patterns = [w for w in names if tests or emit.is_pattern(w, regex)]
-    if list_only and not patterns:
-        raise click.ClickException("--list shows what a pattern matches; give one ('*Sleep*')")
-    targets = None
-    count = len(names)
-    if patterns:
-        say(f"profile {name}: finding {', '.join(repr(p) for p in patterns)}")
-        try:
-            found = _matches(patterns, regex, kind, UacCli(name), parallel, say)
-            found = emit.filtered(found, tests, UacCli(name), parallel=parallel, echo=say)
-        except (LookupError_, TransportError) as error:
-            raise click.ClickException(str(error)) from error
-        if list_only:
-            for item in found:
-                shown = typealias.alias_for(item.type) if item.type else ""
-                click.echo(f"{item.kind.key:24s} {shown:20s} {item.name}")
-            return
-        if len(found) > ASK_ABOVE and not yes:
-            found = _choose(found, patterns, say)
-        exact = [w for w in names if w not in patterns]
-        try:
-            exact_kinds = emit.kinds_for(kind)
-        except LookupError_ as error:
-            raise click.ClickException(str(error)) from error
-        targets = [(w, exact_kinds) for w in exact] + [(i.name, [i.kind]) for i in found]
-        if not targets:
-            raise click.ClickException("nothing matches; nothing was written")
-        count = len(targets)
-    if uac_bundle:
-        say(f"profile {name}: asking for UAC Bundle {uac_bundle!r}...")
-    else:
-        members = " and what they need" if with_members else ""
-        say(f"profile {name}: reading {count} object(s){members}, up to {parallel} at a time")
     try:
-        text, warnings = export_text(
-            list(names),
-            kind,
-            ws,
+        result = service.export_bundle(
             UacCli(name),
-            ws.template_set(),
-            style=style,
-            show_inactive=show_inactive,
-            with_members=with_members,
+            ws,
+            names,
+            kind=kind,
             uac_bundle=uac_bundle,
-            variablize=variablize_agents,
+            style=style,
+            with_members=with_members,
+            show_inactive=show_inactive,
+            variablize_agents=variablize_agents,
             suggest_templates=suggest_templates,
-            report=report,
-            echo=say,
             parallel=parallel,
-            extensions=needed,
-            targets=targets,
+            regex=regex,
+            list_only=list_only,
+            yes=yes,
             purpose=purpose,
+            wheres=wheres,
+            profile_label=name,
+            say=say,
+            choose=_choose,
         )
-    except (LookupError_, TransportError) as error:
+    except service.ServiceError as error:
         raise click.ClickException(str(error)) from error
-    for warning in warnings:
+    if list_only:
+        for line in result.listed:
+            click.echo(line)
+        return
+    for warning in result.warnings:
         click.echo(f"?? {warning}", err=True)
-    for line in report:
+    for line in result.report:
         click.echo(line, err=True)
     if out:
-        Path(out).write_text(text)
+        Path(out).write_text(result.text)
         click.echo(f"wrote {out}")
     else:
-        click.echo(text, nl=False)
+        click.echo(result.text, nl=False)
     if export_extensions:
-        _freeze_after_export(needed, ws, UacCli(name), name, out, say, parallel)
-
-
-#: More matches than this and export asks which to take (or needs -y).
-ASK_ABOVE = 15
-
-
-def _matches(
-    patterns: list[str], regex: bool, kind: str | None, transport: Any, parallel: int, say: Any
-) -> list[Any]:
-    """What the patterns match on the controller, within -t."""
-    from uac_compose import emit
-
-    warnings: list[str] = []
-    listed = emit.list_names(
-        emit.type_filter(kind), transport, parallel=parallel, echo=say, warnings=warnings
-    )
-    for warning in warnings:
-        say(f"?? {warning}")
-    found = emit.select(patterns, regex, listed)
-    say(f"   {len(found)} of {len(listed)} listed object(s) match")
-    return found
+        _freeze_after_export(result.extensions, ws, UacCli(name), name, out, say, parallel)
 
 
 def _interactive() -> bool:
@@ -340,10 +272,9 @@ def _choose(found: list[Any], patterns: list[str], say: Any) -> list[Any]:
         groups.setdefault(item.kind.key, []).append(item)
     keys = list(groups)
     if not _interactive():
-        raise click.ClickException(
-            f"{len(found)} objects match {', '.join(repr(p) for p in patterns)}; "
-            "add -y to export them all, narrow with -t, or see them with -l"
-        )
+        from uac_compose.service import too_many
+
+        raise click.ClickException(too_many(len(found), patterns))
     say(f"{len(found)} objects match:")
     while True:
         for i, key in enumerate(keys, 1):
@@ -406,8 +337,14 @@ def _freeze_after_export(
 
 @cli.command(name="import")
 @_profile
-@click.argument("file", type=click.Path(exists=True, dir_okay=False))
+@click.argument("file")
 @click.option("-n", "--dry-run", is_flag=True, help="Decide and compare; write nothing.")
+@click.option(
+    "--sha256",
+    default=None,
+    metavar="HEX",
+    help="Refuse the file unless its SHA-256 is this (pins a hub: or URL download).",
+)
 @click.option("-u", "--update", is_flag=True, help="Update objects that differ.")
 @click.option(
     "-e",
@@ -436,125 +373,45 @@ def import_(
     profile: str | None,
     file: str,
     dry_run: bool,
+    sha256: str | None,
     update: bool,
     extensions: str | None,
     update_extensions: bool,
     parallel: int,
 ) -> None:
-    """Apply a bundle idempotently (create / reuse / update / conflict)."""
-    from uac_compose import importer, validate
-    from uac_compose.compile import CompileError, compile_bundle
-    from uac_compose.learn import Workspace, current_extensions
-    from uac_compose.transport import TransportError, UacCli
-    from uac_compose.yamlio import BundleError, read_bundle
+    """Apply a bundle idempotently (create / reuse / update / conflict).
 
-    if update_extensions and not extensions:
-        raise click.ClickException("--update-extensions needs --extensions DIR")
+    FILE is a .uac.yaml file, an https:// URL, or a Composer Hub reference:
+    hub:NAME, hub:NAME==1.0, 'hub:NAME>=1.0,<2' (quote it in a shell).
+    """
+    from uac_compose import service
+    from uac_compose.learn import Workspace
+    from uac_compose.transport import UacCli
+
     name = profile_name(profile)
-    ws = Workspace(profile_dir(profile))
-    templates = ws.template_set()
-    transport = UacCli(name)
-    started = time.monotonic()
+    text = _bundle_text(file, sha256)
 
     # Progress goes to stderr, as export's does; the decisions stay on stdout.
     def say(line: str) -> None:
         click.echo(line, err=True)
 
     try:
-        bundle = read_bundle(Path(file).read_text())
-        planned = compile_bundle(bundle, templates)
-    except (BundleError, CompileError) as error:
-        raise click.ClickException(f"{file}:\n{error}") from error
-    say(f"profile {name}: {file}, {len(planned)} object(s)")
-    say("   reading the controller's extensions...")
-    # The extension map must describe the controller as it WILL BE, or a task
-    # using an extension the stored map has never seen is refused parameter by
-    # parameter, with nothing saying the map is stale.
-    try:
-        ext = current_extensions(ws, transport)
-        if extensions:
-            from uac_compose.core.extensions import merge_maps
-            from uac_compose.freeze import frozen_map
-
-            ext = merge_maps(frozen_map(Path(extensions)), ext)
-    except TransportError as error:
-        raise click.ClickException(str(error)) from error
-    say(f"   checking {len(planned)} object(s) against the rules")
-    findings = validate.static(planned, None, ext)
-    if ws.references.exists():
-        known = validate.known_from(json.loads(ws.references.read_text()))
-        findings += validate.references_(planned, known, ext)
-    for p in planned:
-        findings += validate.inactive_stated(p, templates)
-    # Errors first, each group in file order. Mixed in file order, the one
-    # error that mattered sat 16th of 18 lines, under warnings that did not.
-    for finding in sorted(findings, key=lambda f: f.level != "error"):
-        click.echo(str(finding))
-    if validate.errors(findings):
-        raise click.ClickException(
-            f"{len(validate.errors(findings))} error(s); nothing was read or written"
-        )
-    try:
-        extension_steps = (
-            _plan_extensions(planned, Path(extensions), transport, update_extensions)
-            if extensions
-            else []
-        )
-        say(f"reading {len(planned)} object(s) from the controller, up to {parallel} at a time")
-        at = time.monotonic()
-        decisions = importer.decide_all(
-            planned,
-            transport,
-            ext,
+        service.import_bundle(
+            UacCli(name),
+            Workspace(profile_dir(profile)),
+            text,
+            source=file,
+            dry_run=dry_run,
             update=update,
-            services=bundle.joins,
-            echo=say,
+            extensions=extensions,
+            update_extensions=update_extensions,
             parallel=parallel,
+            profile_label=name,
+            say=say,
+            out=click.echo,
         )
-        missing = importer.missing_members(planned, transport, say, parallel)
-        say(f"read in {time.monotonic() - at:.1f}s")
-    except TransportError as error:
+    except service.ServiceError as error:
         raise click.ClickException(str(error)) from error
-    create_errors = [
-        f
-        for d in decisions
-        if d.action == "create"
-        for f in validate.for_create(d.planned, templates)
-    ]
-    for finding in create_errors:
-        click.echo(str(finding))
-    for line in missing:
-        click.echo(f"!! {line}")
-    if create_errors or missing:
-        raise click.ClickException(
-            f"{len(create_errors) + len(missing)} error(s); nothing was written"
-        )
-    for d in decisions:
-        was = f"  (was {d.planned.was!r})" if d.planned.renamed else ""
-        click.echo(f"{d.action:8s} {d.planned.label}{was}")
-        for difference in d.differences:
-            click.echo(f"   - {difference}")
-        for note in d.notes:
-            click.echo(f"   ~ {note}")
-    conflicts = [d for d in decisions if d.action == "conflict"]
-    if conflicts:
-        hint = "" if update else " (--update rewrites them)"
-        raise click.ClickException(f"{len(conflicts)} conflict(s); nothing was written{hint}")
-    if dry_run:
-        click.echo("dry run: nothing was written")
-        return
-    try:
-        if extensions:
-            from uac_compose import freeze as freeze_module
-
-            freeze_module.install(extension_steps, Path(extensions), transport, say)
-        importer.write(decisions, transport, templates, click.echo)
-        written = sum(1 for d in decisions if d.action in ("create", "update", "rename"))
-        say(f"wrote {written} object(s); {time.monotonic() - started:.1f}s in all")
-    except TransportError as error:
-        raise click.ClickException(
-            f"{error}\nstopped; the objects above it were written"
-        ) from error
 
 
 @cli.command()
@@ -582,7 +439,7 @@ def freeze(
     """Export the Universal Extensions a bundle needs."""
     from uac_compose import freeze as freeze_module
     from uac_compose.compile import CompileError, compile_bundle
-    from uac_compose.learn import Workspace
+    from uac_compose.learn import Workspace, current_extensions
     from uac_compose.transport import TEMPLATE_GROUP, TransportError, UacCli
     from uac_compose.yamlio import BundleError, read_bundle
 
@@ -592,7 +449,8 @@ def freeze(
     try:
         if file:
             bundle = read_bundle(Path(file).read_text())
-            planned = compile_bundle(bundle, ws.template_set())
+            ext = current_extensions(ws, transport)
+            planned = compile_bundle(bundle, ws.template_set(ext))
             names = freeze_module.template_names([p.obj for p in planned])
             click.echo(f"{file}: {len(planned)} object(s)")
             if not names:
@@ -633,30 +491,6 @@ def freeze(
         + f" --extensions {target}"
         + (f" --profile {name}" if profile else "")
     )
-
-
-def _plan_extensions(
-    planned: list[Any], directory: Path, transport: Any, update: bool
-) -> list[Any]:
-    """What the target's extensions need. Nothing is installed until objects agree."""
-    from uac_compose import freeze as freeze_module
-
-    names = freeze_module.template_names([p.obj for p in planned])
-    if not names:
-        return []
-    if not (directory / freeze_module.MANIFEST_NAME).exists():
-        raise click.ClickException(
-            f"no {freeze_module.MANIFEST_NAME} in {directory} -- run `uac-compose freeze` first"
-        )
-    click.echo(f"-- extensions from {directory}: {', '.join(names)}")
-    steps = freeze_module.plan_sync(names, directory, transport, update=update)
-    for step in steps:
-        if step.action == "warn":
-            click.echo(f"?? extension {step.name}: {step.message}")
-        else:
-            why = f"  ({step.message})" if step.message else ""
-            click.echo(f"{step.action:8s} extension {step.name}{why}")
-    return steps
 
 
 @cli.command(name="apply")
@@ -706,112 +540,37 @@ def apply_(
     With --backup, the objects the plan changes are saved first; if the backup
     cannot be written, nothing is changed.
     """
-    from uac_compose import apply as apply_module
-    from uac_compose.learn import Workspace, current_extensions
-    from uac_compose.transport import TransportError, UacCli
+    from uac_compose import service
+    from uac_compose.learn import Workspace
+    from uac_compose.transport import UacCli
 
     name = profile_name(profile)
-    ws = Workspace(profile_dir(profile))
-    transport = UacCli(name)
 
     def say(line: str) -> None:
         click.echo(line, err=True)
 
-    if backup and Path(backup).exists() and not dry_run:
-        raise click.ClickException(f"--backup {backup} exists; give a new file name")
+    def confirm(summary: str) -> bool:
+        return _ask(f"Run {summary}? [y/N]").strip().lower() in ("y", "yes")
+
     try:
-        changes = apply_module.read(Path(file).read_text())
-        say(f"profile {name}: {file}, {len(changes.steps)} step(s)")
-        say("   reading the controller's extensions...")
-        ext = current_extensions(ws, transport)
-        say("planning: every step in order, reading live, writing nothing")
-        planner = apply_module.Planner(
-            transport, ws.template_set(), ext, parallel=parallel, echo=say
+        service.apply_changes(
+            UacCli(name),
+            Workspace(profile_dir(profile)),
+            Path(file).read_text(),
+            source=file,
+            dry_run=dry_run,
+            yes=yes,
+            verbose=verbose,
+            parallel=parallel,
+            backup=backup,
+            backup_format=backup_format,
+            profile_label=name,
+            say=say,
+            out=click.echo,
+            confirm=confirm if _interactive() else None,
         )
-        plan = planner.plan(changes)
-    except (apply_module.ApplyError, TransportError) as error:
-        raise click.ClickException(f"{file}:\n{error}") from error
-    shown: dict[int, int] = {}
-    for change in plan:
-        number = change.step.number
-        shown[number] = shown.get(number, 0) + 1
-        if verbose or shown[number] <= ASK_ABOVE:
-            for line in apply_module.describe(change):
-                click.echo(line)
-        elif shown[number] == ASK_ABOVE + 1:
-            more = sum(1 for c in plan if c.step.number == number) - ASK_ABOVE
-            click.echo(f"[{number}] ... and {more} more (-v shows them all)")
-    todo = [c for c in plan if c.action != "no change"]
-    if not todo:
-        click.echo("nothing to change")
-        return
-    summary = f"{len(todo)} change(s) to {apply_module.object_count(plan)} object(s)"
-    if dry_run:
-        if backup:
-            click.echo(f"dry run: no backup written ({backup} is written before real writes)")
-        click.echo(f"dry run: {summary}; nothing was written")
-        return
-    if not yes:
-        if not _interactive():
-            raise click.ClickException(f"{summary}; add -y to run them, or -n to only look")
-        if _ask(f"Run {summary}? [y/N]").strip().lower() not in ("y", "yes"):
-            raise click.ClickException("not run; nothing was written")
-    if backup:
-        _apply_backup(
-            apply_module.saved(plan, planner),
-            backup,
-            apply_module.backup_format(backup, backup_format),
-            ws,
-            transport,
-            ext,
-            name,
-            file,
-            parallel,
-            say,
-        )
-    try:
-        apply_module.run(plan, transport, say)
-    except apply_module.ApplyError as error:
+    except service.ServiceError as error:
         raise click.ClickException(str(error)) from error
-    click.echo(f"done: {summary}")
-
-
-def _apply_backup(
-    items: list[Any],
-    path: str,
-    fmt: str,
-    ws: Any,
-    transport: Any,
-    ext: Any,
-    profile_label: str,
-    source: str,
-    parallel: int,
-    say: Any,
-) -> None:
-    """Write the backup, or stop: without it, nothing is changed."""
-    from uac_compose import apply as apply_module
-    from uac_compose.emit import LookupError_
-    from uac_compose.transport import TransportError
-
-    say(f"backup: saving {len(items)} object(s) to {path} ({fmt})")
-    try:
-        if fmt == "json":
-            text = apply_module.backup_json(items, profile_label, source)
-        else:
-            text, warnings = apply_module.backup_compose(
-                items, ws, transport, ws.template_set(), ext, parallel=parallel, echo=say
-            )
-            for warning in warnings:
-                say(f"?? {warning}")
-        Path(path).write_text(text)
-    except (LookupError_, TransportError, OSError) as error:
-        raise click.ClickException(f"backup failed, nothing was changed: {error}") from error
-    undo = (
-        f"uac-compose import {path} -u -p {profile_label}"
-        if fmt == "compose"
-        else "the objects are in the file, as the controller returned them"
-    )
-    click.echo(f"wrote backup {path}; to undo: {undo}")
 
 
 @cli.command(name="find")
@@ -899,6 +658,88 @@ def show_cmd(profile: str | None, template: str) -> None:
         click.echo(line)
     if not described.found:
         raise SystemExit(1)
+
+
+def _bundle_text(file: str, sha256: str | None) -> str:
+    """A local file, a URL or a hub: reference, its checksum checked."""
+    from uac_compose import hub
+
+    try:
+        if hub.is_reference(file):
+            fetched = hub.fetch(file, sha256)
+            what = f"{fetched.name}=={fetched.version}" if fetched.name else fetched.url
+            click.echo(f"{what}: sha256 {fetched.sha256} (checked)", err=True)
+            return fetched.text
+        path = Path(file)
+        if not path.is_file():
+            raise click.ClickException(f"{file}: no such file (a hub bundle is hub:NAME==VERSION)")
+        data = path.read_bytes()
+        hub.check(data, hub.check_pin(sha256), file)
+        return data.decode("utf-8")
+    except hub.HubError as error:
+        raise click.ClickException(str(error)) from error
+
+
+@cli.command(name="publish")
+@click.argument("file", type=click.Path(exists=True, dir_okay=False))
+@click.argument("requirement", metavar="NAME==VERSION")
+@click.option("-d", "--description", default=None, help="One paragraph about the bundle.")
+@click.option(
+    "--description-file",
+    type=click.Path(exists=True, dir_okay=False),
+    default=None,
+    help="Read the description from a file.",
+)
+@click.option("--tag", "tags", multiple=True, help="A tag (up to 5); repeat for more.")
+@click.option(
+    "--require",
+    "requires",
+    multiple=True,
+    help="A requirement for the package page (e.g. 'A database connection named X');"
+    " repeat for more. The hub lists the extensions the file uses by itself.",
+)
+@click.option(
+    "--draft", is_flag=True, help="Upload as a draft: check it on the site, publish there."
+)
+def publish_cmd(
+    file: str,
+    requirement: str,
+    description: str | None,
+    description_file: str | None,
+    tags: tuple[str, ...],
+    requires: tuple[str, ...],
+    draft: bool,
+) -> None:
+    """Publish a bundle to the Composer Hub as NAME==VERSION.
+
+    A published version never changes, and its number is never used again.
+    The token comes from UAC_COMPOSE_HUB_TOKEN; when it is not set, from the
+    file ~/.config/uac-compose/hub-token.
+    """
+    from uac_compose import hub
+
+    if description_file:
+        description = Path(description_file).read_text().strip()
+    try:
+        answer = hub.publish(
+            Path(file).read_text(),
+            requirement,
+            description=description,
+            tags=list(tags) or None,
+            requirements=list(requires) or None,
+            draft=draft,
+            source=file,
+        )
+    except hub.HubError as error:
+        raise click.ClickException(str(error)) from error
+    state = "draft saved" if answer.get("status") == "draft" else "published"
+    click.echo(f"{state}: {answer['name']}=={answer['version']}")
+    click.echo(f"sha256: {answer['sha256']}")
+    click.echo(f"page:   {answer['page']}")
+    if answer.get("url"):
+        click.echo(f"url:    {answer['url']}")
+        click.echo(f"install: uac-compose import -n hub:{answer['name']}=={answer['version']} "
+                   f"--sha256 {answer['sha256']}")  # fmt: skip
 
 
 def main() -> None:

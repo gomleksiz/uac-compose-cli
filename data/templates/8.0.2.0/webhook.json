@@ -1,0 +1,11 @@
+{
+  "_derived": false,
+  "_documented": 0,
+  "_instances": 0,
+  "_source": "controller create defaults, measured on a live controller (a test controller, 8.1, 2026-10-19: a webhook created with name, event, action and url only, read back, deleted). status is left out on purpose: a promotion must carry Disabled too, and import compares only what a file states.",
+  "eventBusinessServiceCriteria": "Member of Any Business Service or Unassigned",
+  "filter": {
+    "logicalOperator": "And"
+  },
+  "httpAuth": "None"
+}

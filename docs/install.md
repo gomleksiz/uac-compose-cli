@@ -5,7 +5,7 @@
 uac-compose needs Python 3.12 or newer.
 
 ```bash
-pip install uac_compose-0.2.2-py3-none-any.whl
+pip install uac_compose-0.3.0-py3-none-any.whl
 uac-compose --version
 ```
 
@@ -53,6 +53,11 @@ controller changes much.
 uac-compose learn -p source
 ```
 
+You do not need `learn` for Universal Extension tasks. `export`, `import`,
+`apply` and `freeze FILE` read the controller's extensions each time they
+connect (about 2 to 5 seconds), and save the map in the workspace. After
+`import --extensions` installs an extension, import reads them again.
+
 The cache, the frozen extensions and the reports go in the workspace:
 `~/.uac/compose/<profile>/`, or the folder that `UAC_COMPOSE_WORKSPACE`
 names.
@@ -66,3 +71,39 @@ names.
 | `UAC_COMPOSE_PROFILE` | the profile when `-p` is not given | `default` |
 | `UAC_COMPOSE_WORKSPACE` | where the cache, extensions and reports go | `~/.uac/compose` |
 | `UAC_COMPOSE_UAC` | the full path to the `uac` CLI, when it is not on PATH | `uac` on PATH |
+| `UAC_COMPOSE_DATA` | the shipped data folder, when the package is imported from a zip and cannot read its own `_data` | the package's `_data` |
+| `UAC_COMPOSE_HUB_URL` | the Composer Hub for `hub:` references and `publish` | `https://composer.husey.in` |
+| `UAC_COMPOSE_HUB_TOKEN` | the hub API token for `publish`; it wins over the file | the file `~/.config/uac-compose/hub-token` |
+
+## Use as a library
+
+A program can run export, import and apply without the `uac` CLI. Install
+the `api` extra: it adds `uac-api`, which calls the controller's REST API in
+the same process.
+
+```bash
+pip install 'uac-compose[api]'
+```
+
+```python
+from pathlib import Path
+
+from uac_compose import service
+from uac_compose.learn import Workspace
+from uac_compose.transport_api import ApiTransport
+
+api = ApiTransport.connect("https://uc.example.com", token="...")  # or user=, password=
+ws = Workspace(Path("/tmp/uac-compose"))  # any folder; the extension map is read each run
+
+result = service.import_bundle(api, ws, Path("nightly.uac.yaml").read_text(),
+                               dry_run=True, out=print, say=print)
+text = service.export_bundle(api, ws, ["Nightly*"], kind="task", yes=True).text
+```
+
+- `say` gets the progress lines and `out` the results.
+- A failure raises `service.ServiceError`, with the same text the command
+  line shows.
+- The functions never ask a question:
+  - export of more than 15 matches needs `yes=True` (or a `choose`
+    callback);
+  - a real apply needs `yes=True` (or a `confirm` callback).

@@ -1,8 +1,9 @@
 # CLAUDE.md
 
 `uac-compose` exports Stonebranch UAC definitions to readable `.uac.yaml` bundle files
-and imports them back. Seven commands: `learn`, `export`, `import`, `freeze`,
-`show`, `apply`, `find`.
+and imports them back. Eight commands: `learn`, `export`, `import`, `freeze`,
+`show`, `apply`, `find`, `publish` (to the Composer Hub, `hub.py`; the site is the
+separate `composer-web` project).
 No AI features. Keep it small: do not add commands, project files or
 `dev` subcommands without being asked.
 
