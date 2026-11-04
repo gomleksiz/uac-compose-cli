@@ -28,7 +28,7 @@ New to it? Start with the [cookbook](docs/COOKBOOK.md).
 ## Install
 
 ```bash
-pip install uac_compose-0.4.0-py3-none-any.whl     # Python 3.12 or newer
+pip install uac_compose-0.4.1-py3-none-any.whl     # Python 3.12 or newer
 ```
 
 uac-compose runs the `uac` CLI for every call to the controller. It finds

@@ -449,6 +449,11 @@ task. Two keys for one simulation are an error, and a simulation takes no
   (`- {outputType: FILE, outputData: ..., outputFileName: /tmp/x.log}`).
   Types: `STDOUT`, `STDERR`, `FILE`, `EXTENSION` (a Universal task's
   extension output).
+- The controller limits both by task type (measured live): a SQL or Stored
+  Procedure task takes no `STDOUT` output ("STDOUT output type is not
+  supported for task type Stored Procedure"); a Universal task's `variables`
+  are its extension's output fields by their own name (`request_id`, not
+  `ops_ue_..._request_id`: "Unsupported simulation variable").
 - `publishStatus`, `publishLateStart`, `publishLateFinish`,
   `publishEarlyFinish` publish those events; `abortActions`,
   `emailNotificationActions`, `variableActions`, `snmpNotificationActions`,

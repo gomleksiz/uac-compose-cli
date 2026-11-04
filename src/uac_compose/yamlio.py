@@ -44,7 +44,36 @@ def style_named(written: str) -> str:
 
 
 class Loader(yaml.SafeLoader):
-    pass
+    """Safe, `true`/`false` only as booleans, and no key twice in a mapping.
+
+    PyYAML keeps the last of two equal keys and says nothing. A demo bundle
+    with a `simulations:` section written by hand above `triggers:` and a
+    second one appended at the end lost the first: the import created only
+    the second's objects, and nothing said a section was gone.
+    """
+
+    def construct_mapping(self, node: yaml.Node, deep: bool = False) -> dict[Any, Any]:
+        if isinstance(node, yaml.MappingNode):
+            seen: dict[Any, yaml.Mark] = {}
+            for key_node, _ in node.value:
+                if key_node.tag == "tag:yaml.org,2002:merge":
+                    continue
+                key = self.construct_object(key_node, deep=True)
+                try:
+                    hash(key)
+                except TypeError:
+                    continue  # SafeLoader refuses it itself
+                if key in seen:
+                    first = seen[key]
+                    raise yaml.constructor.ConstructorError(
+                        "while reading a mapping",
+                        node.start_mark,
+                        f"found {key!r} twice (first on line {first.line + 1}); "
+                        "the second would silently replace the first",
+                        key_node.start_mark,
+                    )
+                seen[key] = key_node.start_mark
+        return super().construct_mapping(node, deep=deep)  # type: ignore[arg-type]
 
 
 Loader.yaml_implicit_resolvers = {

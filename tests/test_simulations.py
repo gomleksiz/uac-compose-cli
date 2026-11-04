@@ -176,3 +176,16 @@ def test_with_simulations_brings_those_of_the_exported_tasks(ws: Workspace) -> N
     text = service.export_bundle(fake, ws, ["Load Prices"], kind="task", with_simulations=True).text
     sims = read_bundle(text).sections["simulations"]
     assert list(sims) == ["Load Prices", "Load Prices in Daily Close (vertex 7)"]
+
+
+def test_a_section_written_twice_is_refused(ws: Workspace) -> None:
+    """PyYAML keeps the last of two equal keys; a bundle refuses them."""
+    text = (
+        "simulations:\n  A: {status: Failed}\n"
+        "tasks:\n  A: {type: Unix, agent: x, command: ls}\n"
+        "simulations:\n  B: {status: Success}\n"
+    )
+    with pytest.raises(ServiceError, match=r"found 'simulations' twice \(first on line 1\)"):
+        service.import_bundle(FakeTransport(), ws, text, dry_run=True)
+    with pytest.raises(ServiceError, match="found 'A' twice"):
+        service.import_bundle(FakeTransport(), ws, "tasks:\n  A: {}\n  A: {}\n", dry_run=True)
