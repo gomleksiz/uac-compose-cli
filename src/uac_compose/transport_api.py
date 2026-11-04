@@ -28,9 +28,11 @@ from urllib.parse import quote
 from uac_compose import routing
 from uac_compose.transport import (
     BUNDLE_GROUP,
+    KIND_BY_KEY,
     TEMPLATE_GROUP,
     Kind,
     TransportError,
+    by_handle,
     kind_for_type,
     name_arg,
     object_name,
@@ -57,6 +59,7 @@ RESOURCES: dict[str, str] = {
     "connection sap": "sapconnection",
     "connection email": "emailconnection",
     "webhook": "webhook",
+    "simulation": "simulation",
     TEMPLATE_GROUP: "universaltemplate",
     BUNDLE_GROUP: "bundle",
 }
@@ -249,10 +252,23 @@ class ApiTransport:
         return self.get_in(kind_for_type(type_name), name)
 
     def get_in(self, kind: Kind, name: str) -> dict[str, Any] | None:
+        if kind.key == "simulations":
+            return by_handle(self.list_kind(kind), name)
         payload = self._get(
             kind.group, f"{kind.group} get {name!r}", {name_arg(kind.group): name}
         )
         if not isinstance(payload, dict) or not object_name(payload):
+            return None
+        return kind.stamp(payload)
+
+    def get_simulation(self, obj: dict[str, Any]) -> dict[str, Any] | None:
+        from uac_compose import simulation
+
+        kind = KIND_BY_KEY["simulations"]
+        payload = self._get(
+            kind.group, f"{kind.group} get {simulation.handle(obj)!r}", simulation.query(obj)
+        )
+        if not isinstance(payload, dict) or not payload.get("task"):
             return None
         return kind.stamp(payload)
 

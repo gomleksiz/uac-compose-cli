@@ -14,6 +14,8 @@ UAC field is written; `parse` accepts both forms, so any UAC field stays legal.
   opUpdate: true` (data/rules/aliases.yaml `flags:`)
 - event template attributes: `- file_name: File Name` for
   `{name: file_name, label: File Name, type: Text}`; `type:` only when not Text
+- simulation outputs: `outputs: {STDOUT: text}` for `[{outputType: STDOUT,
+  outputData: text}]`, when no row names a file and no type repeats
 """
 
 from __future__ import annotations
@@ -577,6 +579,37 @@ def parse_attributes(written: Any) -> Any:
     return rows
 
 
+# --- simulation outputs ------------------------------------------------------------
+
+OUTPUT_KEYS = frozenset({"outputType", "outputData"})
+
+
+def emit_outputs(rows: Any) -> dict[str, Any] | None:
+    """`{STDOUT: text}`: one entry per output type, none naming a file."""
+    if not isinstance(rows, list) or not rows:
+        return None
+    out: dict[str, Any] = {}
+    for row in rows:
+        if not isinstance(row, dict) or set(row) - OUTPUT_KEYS or "outputType" not in row:
+            return None
+        kind = row["outputType"]
+        if not isinstance(kind, str) or not kind or kind in out:
+            return None
+        out[kind] = row.get("outputData")
+    return out
+
+
+def parse_outputs(written: Any) -> Any:
+    """`{STDOUT: text}` -> `[{outputType: STDOUT, outputData: text}]`; a list
+    (UAC's own rows) is returned as written."""
+    if not isinstance(written, dict):
+        return written
+    return [
+        {"outputType": str(kind)} if data is None else {"outputType": str(kind), "outputData": data}
+        for kind, data in written.items()
+    ]
+
+
 def _emit_by_type(type_name: str, key: str, value: Any) -> tuple[str, Any] | None:
     """(key, value) for a calendar / custom day / event template idiom, if lossless."""
     if type_name == "calendar" and key == "businessDays":
@@ -595,6 +628,10 @@ def _emit_by_type(type_name: str, key: str, value: Any) -> tuple[str, Any] | Non
         rows = emit_attributes(value)
         if rows is not None and parse_attributes(rows) == value:
             return key, rows
+    if type_name == "simulation" and key == "outputs":
+        outputs = emit_outputs(value)
+        if outputs is not None and parse_outputs(outputs) == value:
+            return key, outputs
     return None
 
 
@@ -607,6 +644,8 @@ def _parse_by_type(type_name: str, key: str, value: Any) -> tuple[str, Any] | No
         return "observedRules", parse_observed(value)
     if type_name == "universalEventTemplate" and key == "attributes":
         return key, parse_attributes(value)
+    if type_name == "simulation" and key == "outputs":
+        return key, parse_outputs(value)
     return None
 
 

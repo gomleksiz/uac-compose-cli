@@ -48,6 +48,7 @@ event_templates:
 tasks:                 # workflows are tasks too
 triggers:
 webhooks:              # after tasks: a webhook launches one
+simulations:           # after tasks: keyed by task (+ workflow, vertex), not by a name
 templates:             # copied from by like:, never created
 create_only: [variables, credentials]   # sections to create if missing, never overwrite
 ```
@@ -405,6 +406,57 @@ Disabled; `status` is always written on export, so a promotion carries
 Disabled too. Assigning a user may need that user's password for a caller
 with less right; a file never holds one, so the controller's refusal is then
 the error.
+
+## 8b. Simulations
+
+A simulation makes a task, launched with **Simulate** on, end as the file
+says without running it: a status, an exit code, outputs, and variables it
+sets. A demo bundle carries them beside the real tasks, so one file runs for
+real or simulated: tick **Simulate** in the launch dialog, or
+`uac task launch name=... simulate=true`.
+
+```yaml
+simulations:
+  Load Prices:                 # the key is the task
+    status: Failed             # Success (the default) or Failed
+    exitCode: '3'
+    outputs:                   # one entry per output type
+      STDOUT: |
+        step 1 ok
+        ORA-01403: no data found
+      STDERR: load failed
+    variables:                 # name/value, as everywhere
+    - rows_loaded: '0'
+  Load Prices in Daily Close:  # the same task, only in one workflow
+    task: Load Prices
+    workflow: Daily Close
+    vertexId: '7'              # one vertex; left out = every vertex of the task
+    exitCode: '0'
+```
+
+A simulation has **no name of its own**: the controller keys it by `task`,
+`workflow` (none: the task outside a workflow's own simulation) and
+`vertexId` (`-1`: every vertex). The key in the file is a label; `task`
+defaults to it. Export writes the key as `TASK`, `TASK in WORKFLOW` or
+`TASK in WORKFLOW (vertex N)`, and states `task:` whenever the key is not the
+task. Two keys for one simulation are an error, and a simulation takes no
+`was:`.
+
+- `status` takes `Success` or `Failed` (the controller stores `SUCCESS` /
+  `FAILED`, and refuses any other status).
+- `outputs` is written as a mapping, `{TYPE: text}`, when no type repeats and
+  no output names a file; otherwise as UAC's own rows
+  (`- {outputType: FILE, outputData: ..., outputFileName: /tmp/x.log}`).
+  Types: `STDOUT`, `STDERR`, `FILE`, `EXTENSION` (a Universal task's
+  extension output).
+- `publishStatus`, `publishLateStart`, `publishLateFinish`,
+  `publishEarlyFinish` publish those events; `abortActions`,
+  `emailNotificationActions`, `variableActions`, `snmpNotificationActions`,
+  `systemOperationActions` run the task's own actions during a simulated run.
+  All are off by default.
+
+`export -t simulation 'Load*'` exports simulations by key; `export -w -S`
+brings the simulations of every exported task.
 
 ## 9. Where a file comes from
 

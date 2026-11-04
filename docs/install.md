@@ -5,7 +5,7 @@
 uac-compose needs Python 3.12 or newer.
 
 ```bash
-pip install uac_compose-0.3.0-py3-none-any.whl
+pip install uac_compose-0.4.0-py3-none-any.whl
 uac-compose --version
 ```
 

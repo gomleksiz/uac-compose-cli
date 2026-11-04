@@ -893,6 +893,24 @@ scopes:
       required: cond
       group: time
 types:
+  simulation:
+    doc: null
+    include: []
+    fields:
+      status:
+        label: Status
+        kind: enum
+        values:
+          FAILED: 140
+          SUCCESS: 200
+        ui_labels:
+          Failed: FAILED
+          Success: SUCCESS
+        default: SUCCESS
+      exitCode:
+        label: Exit Code
+        kind: text
+        default: '0'
   taskApplicationControl:
     doc: null
     include:

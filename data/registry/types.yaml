@@ -605,6 +605,66 @@ types:
       - text
       - title
     type: script
+  simulation:
+    export_table: ops_simulation
+    field_types:
+      abortActions: boolean
+      emailNotificationActions: boolean
+      excludeRelated: boolean
+      exitCode: string
+      exportReleaseLevel: string
+      exportTable: string
+      otherOptions: string
+      publishEarlyFinish: boolean
+      publishLateFinish: boolean
+      publishLateStart: boolean
+      publishStatus: boolean
+      retainSysIds: boolean
+      snmpNotificationActions: boolean
+      status: string
+      sysId: string
+      systemOperationActions: boolean
+      task: string
+      variableActions: boolean
+      vertexId: string
+      workflow: string
+    fields:
+    - abortActions
+    - emailNotificationActions
+    - excludeRelated
+    - exitCode
+    - exportReleaseLevel
+    - exportTable
+    - otherOptions
+    - outputs
+    - publishEarlyFinish
+    - publishLateFinish
+    - publishLateStart
+    - publishStatus
+    - retainSysIds
+    - snmpNotificationActions
+    - status
+    - sysId
+    - systemOperationActions
+    - task
+    - variableActions
+    - variables
+    - vertexId
+    - workflow
+    kind: simulation
+    observed_only: false
+    parents: []
+    schema_name: SimulationWsData
+    sub_fields:
+      outputs:
+      - outputData
+      - outputFileName
+      - outputType
+      - sysId
+      variables:
+      - name
+      - value
+    type: simulation
   taskApplicationControl:
     export_table: ops_task_application_control
     field_types:

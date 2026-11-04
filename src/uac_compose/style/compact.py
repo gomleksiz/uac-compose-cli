@@ -34,7 +34,7 @@ def compact_body(
     if type_name == "taskWorkflow":
         from uac_compose.workflow import emit_members
 
-        subs = templates.sub_templates if templates is not None else {}
+        subs = templates.subs_for(type_name) if templates is not None else {}
         out = emit_members(out, subs.get("runCriteria"))
     out = idioms.emit(type_name, out, templates.extensions if templates else None)
     return groups.regroup(type_name, out, imply_enabled)
@@ -54,7 +54,7 @@ def emit_object(
     small = simplify(
         stamped,
         templates.get(type_name),
-        templates.sub_templates,
+        templates.subs_for(type_name),
         extensions=templates.extensions,
         reserved=reserved,
     )

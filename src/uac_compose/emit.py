@@ -593,6 +593,35 @@ def with_was(
     return out
 
 
+def simulations_of(
+    objects: list[tuple[dict[str, Any], str]], transport: Transport, echo: Echo = _silent
+) -> list[tuple[dict[str, Any], str]]:
+    """The simulations of the exported tasks, each once (`--with-simulations`).
+
+    One `simulation list`: a controller holds few of them (192 on a test
+    controller), and a `get` each would need every workflow and vertex.
+    """
+    from uac_compose import simulation
+
+    tasks = {
+        str(obj.get("name"))
+        for obj, type_name in objects
+        if type_name.startswith("task")
+    }
+    have = {object_name(obj) for obj, type_name in objects if type_name == simulation.TYPE}
+    if not tasks:
+        return []
+    echo("   listing the simulations of the exported tasks...")
+    rows = transport.list_kind(KIND_BY_KEY["simulations"])
+    out = [
+        (row, simulation.TYPE)
+        for row in rows
+        if str(row.get("task") or "") in tasks and object_name(row) not in have
+    ]
+    echo(f"   {len(out)} simulation(s) of {len(tasks)} task(s)")
+    return out
+
+
 def export_text(
     names: list[str],
     kind_word: str | None,
@@ -603,6 +632,7 @@ def export_text(
     style: str = "compact",
     show_inactive: bool = False,
     with_members: bool = False,
+    with_simulations: bool = False,
     uac_bundle: str | None = None,
     variablize: bool = False,
     suggest_templates: bool = False,
@@ -636,6 +666,8 @@ def export_text(
             parallel=parallel,
             targets=targets,
         )
+    if with_simulations:
+        found.objects += simulations_of(found.objects, transport, echo)
     echo(f"read {len(found.objects)} object(s) in {time.monotonic() - started:.1f}s")
     if extensions is not None:
         from uac_compose.freeze import template_names

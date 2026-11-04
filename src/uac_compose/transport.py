@@ -84,6 +84,9 @@ KINDS: tuple[Kind, ...] = (
     Kind("email_connections", "connection email", routing="emailConnection", own_type=True),
     # `webhook list` is complete and carries no type.
     Kind("webhooks", "webhook", routing="webhook"),
+    # No name of its own: keyed by task, workflow and vertex (simulation.py).
+    # `simulation list` is complete and carries no type.
+    Kind("simulations", "simulation", routing="simulation", name_key="task"),
 )
 KIND_BY_KEY = {k.key: k for k in KINDS}
 _KIND_BY_ROUTING = {k.routing: k for k in KINDS if k.routing}
@@ -127,8 +130,20 @@ def kind_for_type(type_name: str) -> Kind:
     raise TransportError(f"no uac group for type {type_name!r}")
 
 
+def by_handle(rows: list[dict[str, Any]], handle: str) -> dict[str, Any] | None:
+    """The simulation written under `handle`. A handle is not split back into
+    task and workflow -- a task name may hold " in " -- but matched against
+    the handle of each stored one (one `simulation list`)."""
+    return next((dict(r) for r in rows if object_name(r) == handle), None)
+
+
 def object_name(obj: dict[str, Any]) -> str:
-    """A script keeps its name in `scriptName`; everything else in `name`."""
+    """A script keeps its name in `scriptName`; a simulation has none, and is
+    known by its handle (task, workflow, vertex); everything else in `name`."""
+    from uac_compose import simulation
+
+    if simulation.is_simulation(obj):
+        return simulation.handle(obj)
     return str(obj.get("scriptName") or obj.get("name") or "")
 
 
@@ -149,6 +164,11 @@ class Transport(Protocol):
         ...
 
     def get_in(self, kind: Kind, name: str) -> dict[str, Any] | None: ...
+
+    def get_simulation(self, obj: dict[str, Any]) -> dict[str, Any] | None:
+        """The stored simulation with `obj`'s task, workflow and vertex, stamped;
+        None when there is none (simulation.py)."""
+        ...
 
     def create(self, obj: dict[str, Any]) -> None: ...
 
@@ -365,6 +385,8 @@ class UacCli:
         return self.get_in(kind_for_type(type_name), name)
 
     def get_in(self, kind: Kind, name: str) -> dict[str, Any] | None:
+        if kind.key == "simulations":
+            return by_handle(self.list_kind(kind), name)
         done = self._call(kind.group, "get", f"{name_arg(kind.group)}={name}")
         text = (done.stdout or "").strip()
         if not text.startswith("{"):
@@ -379,6 +401,29 @@ class UacCli:
         except ValueError as error:
             raise TransportError(f"uac {kind.group} get {name!r}: answer is not JSON") from error
         if not isinstance(payload, dict) or not object_name(payload):
+            return None
+        return kind.stamp(payload)
+
+    def get_simulation(self, obj: dict[str, Any]) -> dict[str, Any] | None:
+        from uac_compose import simulation
+
+        kind = KIND_BY_KEY["simulations"]
+        args = [f"{k}={v}" for k, v in simulation.query(obj).items()]
+        shown = simulation.handle(obj)
+        done = self._call(kind.group, "get", *args)
+        text = (done.stdout or "").strip()
+        if not text.startswith("{"):
+            said = (done.stderr or text).strip()
+            if is_absent(said):
+                return None
+            raise TransportError(
+                f"uac {kind.group} get {shown!r}: {reason(said) or f'exit {done.returncode}'}"
+            )
+        try:
+            payload: Any = json.loads(text)
+        except ValueError as error:
+            raise TransportError(f"uac {kind.group} get {shown!r}: answer is not JSON") from error
+        if not isinstance(payload, dict) or not payload.get("task"):
             return None
         return kind.stamp(payload)
 
@@ -618,6 +663,14 @@ class FakeTransport:
         for obj in self.objects.get(kind.key, []):
             if object_name(obj) == name:
                 return dict(obj)
+        return None
+
+    def get_simulation(self, obj: dict[str, Any]) -> dict[str, Any] | None:
+        from uac_compose import simulation
+
+        for row in self.objects.get("simulations", []):
+            if simulation.same(row, obj):
+                return dict(row)
         return None
 
     def command(self, kind: Kind, name: str, verb: str, args: dict[str, str]) -> None:

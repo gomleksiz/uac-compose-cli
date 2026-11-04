@@ -103,6 +103,13 @@ def learn(profile: str | None, refresh: bool) -> None:
     "defaults removed (`uac` is the old name for it).",
 )
 @click.option("-w", "--with-members", is_flag=True, help="Include what the objects depend on.")
+@click.option(
+    "-S",
+    "--with-simulations",
+    is_flag=True,
+    help="Also write the simulations of every exported task (a `simulations:` section), "
+    "so the file can run with Simulate on or off.",
+)
 @click.option("-i", "--show-inactive", is_flag=True, help="Keep fields whose feature is off.")
 @click.option(
     "-a",
@@ -182,6 +189,7 @@ def export(
     uac_bundle: str | None,
     style: str,
     with_members: bool,
+    with_simulations: bool,
     show_inactive: bool,
     variablize_agents: bool,
     suggest_templates: bool,
@@ -220,6 +228,7 @@ def export(
             uac_bundle=uac_bundle,
             style=style,
             with_members=with_members,
+            with_simulations=with_simulations,
             show_inactive=show_inactive,
             variablize_agents=variablize_agents,
             suggest_templates=suggest_templates,

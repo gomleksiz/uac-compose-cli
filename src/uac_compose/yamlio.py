@@ -146,6 +146,7 @@ SECTIONS = (
     "tasks",
     "triggers",
     "webhooks",  # a webhook launches a task: after tasks
+    "simulations",  # a simulation names a task and a workflow: after tasks
 )
 TEMPLATES = "templates"
 

@@ -1,0 +1,18 @@
+{
+  "_derived": false,
+  "_documented": 0,
+  "_instances": 0,
+  "_source": "controller create defaults, measured on a live controller (a test controller, 8.1, 2026-11-04: a simulation created with task only, read back, deleted). workflow is left out on purpose: it names another object, and none means the task outside any workflow's own simulation.",
+  "abortActions": false,
+  "emailNotificationActions": false,
+  "exitCode": "0",
+  "publishEarlyFinish": false,
+  "publishLateFinish": false,
+  "publishLateStart": false,
+  "publishStatus": false,
+  "snmpNotificationActions": false,
+  "status": "SUCCESS",
+  "systemOperationActions": false,
+  "variableActions": false,
+  "vertexId": "-1"
+}

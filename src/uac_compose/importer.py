@@ -416,7 +416,7 @@ def create_payload(planned: Planned, templates: TemplateSet) -> tuple[dict[str, 
     payload = inflate(
         planned.obj,
         templates.get(planned.type),
-        templates.sub_templates,
+        templates.subs_for(planned.type),
         extensions=templates.extensions,
         reserved=_reserved(planned.type),
     )
@@ -426,7 +426,7 @@ def create_payload(planned: Planned, templates: TemplateSet) -> tuple[dict[str, 
 def update_payload(decision: Decision, templates: TemplateSet) -> dict[str, Any]:
     assert decision.stored is not None
     type_name = decision.planned.type
-    template, subs = templates.get(type_name), templates.sub_templates
+    template, subs = templates.get(type_name), templates.subs_for(type_name)
     reserved = _reserved(type_name)
     stored = simplify(
         decision.stored, template, subs, extensions=templates.extensions, reserved=reserved
@@ -477,6 +477,14 @@ def write(
         run_commands(d.planned.obj, d.stored, transport, echo)
 
 
+def read(transport: Transport, planned: Planned) -> dict[str, Any] | None:
+    """The stored object this one would be. A simulation has no name: it is
+    found by its task, workflow and vertex (simulation.py)."""
+    if planned.type == "simulation":
+        return transport.get_simulation(planned.obj)
+    return transport.get(planned.type, planned.name)
+
+
 def decide_all(
     planned: list[Planned],
     transport: Transport,
@@ -500,7 +508,7 @@ def decide_all(
         count += 1
         echo(f"[{count}/{total}] {planned[i].label}  {seconds:.1f}s")
 
-    stored = in_parallel(planned, lambda p: transport.get(p.type, p.name), parallel, done)
+    stored = in_parallel(planned, lambda p: read(transport, p), parallel, done)
     renamed = [p for p in planned if p.renamed]
     earlier: dict[int, dict[str, Any] | None] = {}
     if renamed:

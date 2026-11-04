@@ -20,3 +20,11 @@ fields:
   customDay.ctype: [Single Date, List of Dates, Absolute Repeating Date, Relative Repeating Date]
   customDay.category: [Day, Business Day, Holiday, Period]
   customDay.adjustment: [None, Less, Plus]
+
+  # Simulations. Measured on a test controller (8.1, 2026-11-04): status takes
+  # Success or Failed only ("Could not find the specified status: Skipped");
+  # uacdocs.yaml maps the UI words to the stored SUCCESS / FAILED. Output
+  # types seen there: 6 STDOUT, 8 STDERR, 4 EXTENSION rows over 192
+  # simulations; FILE (with outputFileName) created and read back.
+  simulation.status: [SUCCESS, FAILED]
+  simulation.outputs.outputType: [STDOUT, STDERR, FILE, EXTENSION]

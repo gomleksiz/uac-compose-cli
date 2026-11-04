@@ -307,6 +307,28 @@ def static(
         ):
             out += rung(p)
         out += rung_edges(p, type_of)
+    out += rung_simulations(planned)
+    return out
+
+
+def rung_simulations(planned: list[Planned]) -> list[Finding]:
+    """A simulation is keyed by task, workflow and vertex, never by its handle:
+    two handles for one of them would write it twice, and a rename (`was:`)
+    has no name to change."""
+    from uac_compose import simulation
+
+    out: list[Finding] = []
+    seen: dict[tuple[str, str | None, str], str] = {}
+    for p in planned:
+        if p.type != simulation.TYPE:
+            continue
+        if p.was is not None:
+            out.append(_error(p, "a simulation has no name to rename: drop was:"))
+        key = simulation.identity(p.obj)
+        if key in seen:
+            out.append(_error(p, f"the same simulation as {seen[key]!r} (task, workflow, vertex)"))
+        else:
+            seen[key] = p.name
     return out
 
 
@@ -334,7 +356,7 @@ def for_create(p: Planned, templates: TemplateSet) -> list[Finding]:
     """Requirements of a create, read against the object as it will be posted."""
     if p.type not in registry.load():
         return []
-    full = inflate(p.obj, templates.get(p.type), templates.sub_templates)
+    full = inflate(p.obj, templates.get(p.type), templates.subs_for(p.type))
     out = []
     docs = uacdocs.fields(p.type)
     for name, doc in docs.items():
@@ -362,7 +384,7 @@ def inactive_stated(p: Planned, templates: TemplateSet) -> list[Finding]:
     """A field the file states that its own settings make inactive: it does nothing."""
     if p.type not in registry.load():
         return []
-    full = inflate(p.obj, templates.get(p.type), templates.sub_templates)
+    full = inflate(p.obj, templates.get(p.type), templates.subs_for(p.type))
     dead = sorted(inactive.inactive_fields(full) & set(p.obj))
     return [_warn(p, f"{f} is stated but inactive under this object's own settings") for f in dead]
 

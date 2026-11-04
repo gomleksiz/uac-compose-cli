@@ -7,6 +7,7 @@ It can also change objects where they are, with a change file. No AI.
 ```bash
 uac-compose learn                                   # read a controller once: cache + defaults
 uac-compose export "Nightly WF" --with-members      # workflow, members, triggers, calendars → one file
+uac-compose export "Nightly WF" -w -S               # and the simulations of its tasks
 uac-compose export "Nightly Load" --style standard  # UAC field names, defaults removed
 uac-compose export --bundle "MyBundle"              # a UAC Bundle, as the controller resolves it
 uac-compose import nightly.uac.yaml --dry-run       # what would be created / reused / conflict

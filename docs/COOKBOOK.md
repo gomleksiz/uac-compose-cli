@@ -279,6 +279,32 @@ says which.
 
 ---
 
+## 5b. Simulations
+
+**A demo that runs for real or simulated**
+
+```bash
+uac-compose export "Daily Close" -w -S -o daily-close.uac.yaml
+```
+
+`-S` writes a `simulations:` section with the simulations of every exported
+task. Add one where a task has none:
+
+```yaml
+simulations:
+  Load Prices:
+    status: Failed
+    exitCode: '3'
+    outputs:
+      STDOUT: "ORA-01403: no data found"
+```
+
+After the import, launch the workflow as usual for a real run, or with
+**Simulate** on (`uac task launch name="Daily Close" simulate=true`): each task
+with a simulation ends as it says, with its outputs on the Output tab.
+
+---
+
 ## 6. Rename
 
 **Rename one task**

@@ -21,6 +21,10 @@ from uac_compose.transport import Kind, kind_for_type, object_name
 def body_of(small: dict[str, Any], kind: Kind) -> dict[str, Any]:
     """A simplified (stamped) object as it sits under its section key."""
     drop = {kind.name_key, UAC_TYPE_KEY}
+    if str(small.get(kind.name_key) or "") != object_name(small):
+        # A simulation limited to a workflow is keyed "TASK in WORKFLOW": its
+        # task is not its key, and stays in the body.
+        drop.discard(kind.name_key)
     if kind.routing is not None:
         drop.add("type")
     body = {k: v for k, v in small.items() if k not in drop}
@@ -59,7 +63,7 @@ def emit_object(
     small = simplify(
         stamped,
         templates.get(type_name),
-        templates.sub_templates,
+        templates.subs_for(type_name),
         extensions=templates.extensions,
         reserved=reserved,
     )

@@ -18,6 +18,10 @@ uac-compose import nightly.uac.yaml -u -p target    # also update what differs
   [file format](../FORMAT.md) describes both.
 - `--with-members` (`-w`) also exports what the objects need: a workflow's
   tasks, their triggers, calendars, credentials, scripts...
+- `--with-simulations` (`-S`) also exports the simulations of every exported
+  task, in a `simulations:` section: one file runs for real, or with
+  **Simulate** on and the outputs the simulations state. See
+  [Simulations](../FORMAT.md#8b-simulations).
 - `--variablize-agents` (`-a`) names each agent through a variable, so the
   target can use its own agents.
 - `--suggest-templates` (`-T`) writes fields that several objects share once,

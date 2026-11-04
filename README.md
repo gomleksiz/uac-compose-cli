@@ -8,6 +8,7 @@ uac-compose learn                                   # read a controller once: ca
 uac-compose export "Nightly WF" --with-members      # workflow, members, triggers, calendars → one file
 uac-compose export "Nightly Load" --style standard  # UAC field names, defaults removed
 uac-compose export "Nightly WF" --with-members --variablize-agents  # agent: ${agent_x} + the variables
+uac-compose export "Nightly WF" -w --with-simulations  # and the tasks' simulations: run it with Simulate on or off
 uac-compose export --bundle "MyBundle"              # a UAC Bundle, as the controller resolves it
 uac-compose export --bundle "MyBundle" --suggest-templates  # shared fields written once, as templates: + like:
 uac-compose import nightly.uac.yaml --dry-run           # what would be created / reused / conflict
@@ -27,7 +28,7 @@ New to it? Start with the [cookbook](docs/COOKBOOK.md).
 ## Install
 
 ```bash
-pip install uac_compose-0.3.0-py3-none-any.whl     # Python 3.12 or newer
+pip install uac_compose-0.4.0-py3-none-any.whl     # Python 3.12 or newer
 ```
 
 uac-compose runs the `uac` CLI for every call to the controller. It finds

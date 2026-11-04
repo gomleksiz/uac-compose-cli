@@ -121,6 +121,7 @@ class TemplateSet:
         self.root = (root or data_root() / "templates") / release
         self.extensions_path = extensions_path or (self.root / "_extensions.json")
         self._cache: dict[str, dict[str, Any]] = {}
+        self._subs: dict[str, dict[str, dict[str, Any]]] = {}
         if extensions is not None:  # a map read live just now wins over the file
             self.__dict__["extensions"] = extensions
 
@@ -146,6 +147,30 @@ class TemplateSet:
         for path, fallback in FALLBACK_SUB_TEMPLATES.items():
             derived.setdefault(path, dict(fallback))
         return derived
+
+    def subs_for(self, type_name: str) -> dict[str, dict[str, Any]]:
+        """`sub_templates` as one type reads them: each shape keeps only the
+        fields the type declares at that path.
+
+        A shape is keyed by path alone, and two types can hold different rows
+        under one path. A task's `variables` rows carry `allowEmptyOption`;
+        a simulation's are a name and a value only, and a create with the
+        task's defaults filled in was refused live: "Unrecognized property:
+        allowEmptyOption". A type the registry does not know reads them all.
+        """
+        from uac_compose import registry
+
+        if type_name not in registry.load():
+            return self.sub_templates
+        if type_name not in self._subs:
+            declared = registry.get(type_name).sub_fields
+            self._subs[type_name] = {
+                path: shape
+                if path not in declared
+                else {k: v for k, v in shape.items() if k in declared[path]}
+                for path, shape in self.sub_templates.items()
+            }
+        return self._subs[type_name]
 
     @cached_property
     def extensions(self) -> ExtensionMap:

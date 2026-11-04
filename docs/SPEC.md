@@ -287,6 +287,8 @@ scripts:
 event_templates:
 tasks:               # workflows included
 triggers:
+webhooks:
+simulations:         # keyed by task + workflow + vertex (simulation.py), not by name
 templates:           # used by like:, never created
 create_only: [sections]
 ```
